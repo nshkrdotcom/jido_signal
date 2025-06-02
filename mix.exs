@@ -11,7 +11,7 @@ defmodule Jido.Signal.MixProject do
     [
       app: :jido_signal,
       version: @version,
-      elixir: "~> 1.18",
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
