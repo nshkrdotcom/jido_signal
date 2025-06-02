@@ -1,4 +1,4 @@
-defmodule JidoSignal.MixProject do
+defmodule Jido.Signal.MixProject do
   use Mix.Project
 
   @version "1.0.0"
@@ -12,6 +12,7 @@ defmodule JidoSignal.MixProject do
       app: :jido_signal,
       version: @version,
       elixir: "~> 1.18",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
 
@@ -24,6 +25,10 @@ defmodule JidoSignal.MixProject do
       docs: docs()
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   def package do
     [
@@ -52,6 +57,18 @@ defmodule JidoSignal.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      # Deps
+      {:ex_dbug, "~> 2.1"},
+      {:jason, "~> 1.4"},
+      {:msgpax, "~> 2.3"},
+      {:nimble_options, "~> 1.1"},
+      {:phoenix_pubsub, "~> 2.1"},
+      {:private, "~> 0.1.2"},
+      {:telemetry, "~> 1.3"},
+      {:telemetry_metrics, "~> 1.1"},
+      {:typed_struct, "~> 0.3.0"},
+      {:uniq, "~> 0.6.1"},
+
       # Development & Test Dependencies
       {:credo, "~> 1.7", only: [:dev, :test]},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
