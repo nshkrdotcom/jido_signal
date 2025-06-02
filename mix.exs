@@ -14,31 +14,46 @@ defmodule Jido.Signal.MixProject do
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       deps: deps(),
 
       # Docs
       name: "Jido Signal",
-      description: "A toolkit for building autonomous, distributed agent systems in Elixir",
+      description: "Message Envelope and Utilities for Jido",
       source_url: "https://github.com/agentjido/jido_signal",
       homepage_url: "https://github.com/agentjido/jido_signal",
       package: package(),
-      docs: docs()
+      docs: docs(),
+
+      # Coverage
+      test_coverage: [
+        tool: ExCoveralls,
+        summary: [threshold: 80],
+        export: "cov",
+        ignore_modules: [~r/^JidoTest\./]
+      ],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.github": :test,
+        "coveralls.lcov": :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.cobertura": :test
+      ]
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:logger],
+      mod: {Jido.Signal.Application, []}
     ]
   end
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
-
-  def package do
-    [
-      name: "jido_signal",
-      files: ["lib", "mix.exs", "README*", "LICENSE*"],
-      maintainers: ["Jido"],
-      licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/agentjido/jido_signal"}
-    ]
-  end
 
   def docs do
     [
@@ -47,11 +62,16 @@ defmodule Jido.Signal.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
-  def application do
+  def package do
     [
-      extra_applications: [:logger],
-      mod: {Jido.Signal.Application, []}
+      files: ["lib", "mix.exs", "README*", "LICENSE*"],
+      maintainers: ["Mike Hostetler"],
+      licenses: ["Apache-2.0"],
+      links: %{
+        "GitHub" => "https://github.com/agentjido/jido_signal",
+        "AgentJido.xyz" => "https://agentjido.xyz",
+        "Jido Workbench" => "https://github.com/agentjido/jido_workbench"
+      }
     ]
   end
 
@@ -81,6 +101,27 @@ defmodule Jido.Signal.MixProject do
       {:mock, "~> 0.3.0", only: :test},
       {:mimic, "~> 1.11", only: :test},
       {:stream_data, "~> 1.0", only: [:dev, :test]}
+    ]
+  end
+
+  defp aliases do
+    [
+      # Helper to run tests with trace when needed
+      # test: "test --trace --exclude flaky",
+      test: "test --exclude flaky",
+
+      # Helper to run docs
+      # docs: "docs -f html --open",
+
+      # Run to check the quality of your code
+      q: ["quality"],
+      quality: [
+        "format",
+        "format --check-formatted",
+        "compile --warnings-as-errors",
+        "dialyzer --format dialyxir",
+        "credo --all"
+      ]
     ]
   end
 end
