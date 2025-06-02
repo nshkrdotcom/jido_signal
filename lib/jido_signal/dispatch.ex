@@ -1,5 +1,5 @@
 defmodule Jido.Signal.Dispatch do
-  alias Jido.Error
+  alias Jido.Signal.Error
 
   @moduledoc """
   A flexible signal dispatching system that routes signals to various destinations using configurable adapters.

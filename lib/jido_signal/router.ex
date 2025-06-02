@@ -164,14 +164,14 @@ defmodule Jido.Signal.Router do
   ## See Also
 
   - `Jido.Signal` - Signal structure and validation
-  - `Jido.Error` - Error types and handling
+  - `Jido.Signal.Error` - Error types and handling
   - `Jido.Signal.Dispatch` - Dispatch adapter interface
   """
   use Private
   use TypedStruct
 
   alias Jido.Signal
-  alias Jido.Error
+  alias Jido.Signal.Error
   alias Jido.Signal.Router.{Engine, Route, Validator}
 
   @type path :: String.t()

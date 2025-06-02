@@ -13,7 +13,7 @@ defmodule Jido.Signal.Bus.Subscriber do
 
   alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.Bus.State, as: BusState
-  alias Jido.Error
+  alias Jido.Signal.Error
 
   typedstruct do
     field(:id, String.t(), enforce: true)

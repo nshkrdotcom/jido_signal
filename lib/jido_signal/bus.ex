@@ -18,7 +18,7 @@ defmodule Jido.Signal.Bus do
   alias Jido.Signal.Bus.Stream
   alias Jido.Signal.Bus.Snapshot
   alias Jido.Signal.Bus.MiddlewarePipeline
-  alias Jido.Error
+  alias Jido.Signal.Error
 
   @type start_option ::
           {:name, atom()}
@@ -90,8 +90,8 @@ defmodule Jido.Signal.Bus do
     GenServer.start_link(__MODULE__, {name, opts}, name: via_tuple(name, opts))
   end
 
-  defdelegate via_tuple(name, opts \\ []), to: Jido.Util
-  defdelegate whereis(server, opts \\ []), to: Jido.Util
+  defdelegate via_tuple(name, opts \\ []), to: Jido.Signal.Util
+  defdelegate whereis(server, opts \\ []), to: Jido.Signal.Util
 
   @doc """
   Subscribes to signals matching the given path pattern.

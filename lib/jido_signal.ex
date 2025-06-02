@@ -335,7 +335,7 @@ defmodule Jido.Signal do
 
                   {:error, %NimbleOptions.ValidationError{} = error} ->
                     error
-                    |> Jido.Error.format_nimble_validation_error("Signal", __MODULE__)
+                    |> Jido.Signal.Error.format_nimble_validation_error("Signal", __MODULE__)
                     |> (fn reason -> {:error, reason} end).()
                 end
             end
@@ -381,7 +381,7 @@ defmodule Jido.Signal do
           end
 
         {:error, error} ->
-          message = Jido.Error.format_nimble_config_error(error, "Signal", __MODULE__)
+          message = Jido.Signal.Error.format_nimble_config_error(error, "Signal", __MODULE__)
           raise CompileError, description: message, file: __ENV__.file, line: __ENV__.line
       end
     end

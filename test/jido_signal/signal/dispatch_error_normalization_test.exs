@@ -2,11 +2,11 @@ defmodule Jido.Signal.DispatchErrorNormalizationTest do
   use ExUnit.Case, async: true
   alias Jido.Signal.Dispatch
   alias Jido.Signal
-  alias Jido.Error
+  alias Jido.Signal.Error
 
   # Test with error normalization enabled per test
 
-  test "dispatch normalizes errors to Jido.Error when enabled" do
+  test "dispatch normalizes errors to Jido.Signal.Error when enabled" do
     Application.put_env(:jido, :normalize_dispatch_errors, true)
     {:ok, signal} = Signal.new(%{type: "test.event", source: "test", data: %{value: 42}})
 

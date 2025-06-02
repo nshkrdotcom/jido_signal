@@ -5,7 +5,7 @@ defmodule Jido.Signal.Router.Validator do
 
   use ExDbug, enabled: false
 
-  alias Jido.Error
+  alias Jido.Signal.Error
   alias Jido.Signal
   alias Jido.Signal.Router.Route
 

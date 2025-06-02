@@ -1,4 +1,4 @@
-defmodule Jido.Util do
+defmodule Jido.Signal.Util do
   @moduledoc """
   A collection of utility functions for the Jido framework.
 
@@ -35,13 +35,13 @@ defmodule Jido.Util do
 
   ## Examples
 
-      iex> Jido.Util.via_tuple(:my_process)
+      iex> Jido.Signal.Util.via_tuple(:my_process)
       {:via, Registry, {Jido.Signal.Registry, "my_process"}}
 
-      iex> Jido.Util.via_tuple(:my_process, registry: MyRegistry)
+      iex> Jido.Signal.Util.via_tuple(:my_process, registry: MyRegistry)
       {:via, Registry, {MyRegistry, "my_process"}}
 
-      iex> Jido.Util.via_tuple({:my_process, MyRegistry})
+      iex> Jido.Signal.Util.via_tuple({:my_process, MyRegistry})
       {:via, Registry, {MyRegistry, "my_process"}}
   """
   @spec via_tuple(server(), keyword()) :: {:via, Registry, {module(), String.t()}}
@@ -74,13 +74,13 @@ defmodule Jido.Util do
 
   ## Examples
 
-      iex> Jido.Util.whereis(pid)
+      iex> Jido.Signal.Util.whereis(pid)
       {:ok, #PID<0.123.0>}
 
-      iex> Jido.Util.whereis(:my_process)
+      iex> Jido.Signal.Util.whereis(:my_process)
       {:ok, #PID<0.124.0>}
 
-      iex> Jido.Util.whereis({:my_process, MyRegistry})
+      iex> Jido.Signal.Util.whereis({:my_process, MyRegistry})
       {:ok, #PID<0.125.0>}
   """
   @spec whereis(server(), keyword()) :: {:ok, pid()} | {:error, :not_found}

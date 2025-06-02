@@ -1,4 +1,4 @@
-defmodule Jido.Error do
+defmodule Jido.Signal.Error do
   @moduledoc """
   Defines error structures and helper functions for Jido
 
@@ -37,7 +37,7 @@ defmodule Jido.Error do
   Example:
 
       defmodule MyExec do
-        alias Jido.Error
+        alias Jido.Signal.Error
 
         def run(params) do
           case validate(params) do
@@ -114,16 +114,16 @@ defmodule Jido.Error do
 
   ## Examples
 
-      iex> Jido.Error.new(:config_error, "Invalid configuration")
-      %Jido.Error{
+      iex> Jido.Signal.Error.new(:config_error, "Invalid configuration")
+      %Jido.Signal.Error{
         type: :config_error,
         message: "Invalid configuration",
         details: nil,
         stacktrace: [...]
       }
 
-      iex> Jido.Error.new(:execution_error, "Exec failed", %{step: "data_processing"})
-      %Jido.Error{
+      iex> Jido.Signal.Error.new(:execution_error, "Exec failed", %{step: "data_processing"})
+      %Jido.Signal.Error{
         type: :execution_error,
         message: "Exec failed",
         details: %{step: "data_processing"},
@@ -152,8 +152,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.invalid_action("Action 'MyAction' is missing required callback")
-      %Jido.Error{
+      iex> Jido.Signal.Error.invalid_action("Action 'MyAction' is missing required callback")
+      %Jido.Signal.Error{
         type: :invalid_action,
         message: "Action 'MyAction' is missing required callback",
         details: nil,
@@ -177,8 +177,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.invalid_sensor("Sensor 'MySensor' is missing required callback")
-      %Jido.Error{
+      iex> Jido.Signal.Error.invalid_sensor("Sensor 'MySensor' is missing required callback")
+      %Jido.Signal.Error{
         type: :invalid_sensor,
         message: "Sensor 'MySensor' is missing required callback",
         details: nil,
@@ -202,8 +202,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.bad_request("Missing required parameter 'user_id'")
-      %Jido.Error{
+      iex> Jido.Signal.Error.bad_request("Missing required parameter 'user_id'")
+      %Jido.Signal.Error{
         type: :bad_request,
         message: "Missing required parameter 'user_id'",
         details: nil,
@@ -227,8 +227,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.validation_error("Invalid email format", %{field: "email", value: "not-an-email"})
-      %Jido.Error{
+      iex> Jido.Signal.Error.validation_error("Invalid email format", %{field: "email", value: "not-an-email"})
+      %Jido.Signal.Error{
         type: :validation_error,
         message: "Invalid email format",
         details: %{field: "email", value: "not-an-email"},
@@ -252,8 +252,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.config_error("Invalid database connection string")
-      %Jido.Error{
+      iex> Jido.Signal.Error.config_error("Invalid database connection string")
+      %Jido.Signal.Error{
         type: :config_error,
         message: "Invalid database connection string",
         details: nil,
@@ -277,8 +277,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.execution_error("Failed to process data", %{step: "data_transformation"})
-      %Jido.Error{
+      iex> Jido.Signal.Error.execution_error("Failed to process data", %{step: "data_transformation"})
+      %Jido.Signal.Error{
         type: :execution_error,
         message: "Failed to process data",
         details: %{step: "data_transformation"},
@@ -302,8 +302,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.planning_error("Failed to plan action", %{step: "goal_analysis"})
-      %Jido.Error{
+      iex> Jido.Signal.Error.planning_error("Failed to plan action", %{step: "goal_analysis"})
+      %Jido.Signal.Error{
         type: :planning_error,
         message: "Failed to plan action",
         details: %{step: "goal_analysis"},
@@ -327,8 +327,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.action_error("Exec 'ProcessOrder' failed", %{order_id: 12345})
-      %Jido.Error{
+      iex> Jido.Signal.Error.action_error("Exec 'ProcessOrder' failed", %{order_id: 12345})
+      %Jido.Signal.Error{
         type: :action_error,
         message: "Exec 'ProcessOrder' failed",
         details: %{order_id: 12345},
@@ -352,8 +352,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.internal_server_error("Unexpected error in data processing")
-      %Jido.Error{
+      iex> Jido.Signal.Error.internal_server_error("Unexpected error in data processing")
+      %Jido.Signal.Error{
         type: :internal_server_error,
         message: "Unexpected error in data processing",
         details: nil,
@@ -377,8 +377,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.timeout("Exec timed out after 30 seconds", %{action: "FetchUserData"})
-      %Jido.Error{
+      iex> Jido.Signal.Error.timeout("Exec timed out after 30 seconds", %{action: "FetchUserData"})
+      %Jido.Signal.Error{
         type: :timeout,
         message: "Exec timed out after 30 seconds",
         details: %{action: "FetchUserData"},
@@ -402,8 +402,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.invalid_async_ref("Invalid or expired async action reference")
-      %Jido.Error{
+      iex> Jido.Signal.Error.invalid_async_ref("Invalid or expired async action reference")
+      %Jido.Signal.Error{
         type: :invalid_async_ref,
         message: "Invalid or expired async action reference",
         details: nil,
@@ -427,8 +427,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.routing_error("Invalid route configuration", %{route: "user_action"})
-      %Jido.Error{
+      iex> Jido.Signal.Error.routing_error("Invalid route configuration", %{route: "user_action"})
+      %Jido.Signal.Error{
         type: :routing_error,
         message: "Invalid route configuration",
         details: %{route: "user_action"},
@@ -452,8 +452,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> Jido.Error.dispatch_error("Failed to deliver signal", %{adapter: :http, reason: :timeout})
-      %Jido.Error{
+      iex> Jido.Signal.Error.dispatch_error("Failed to deliver signal", %{adapter: :http, reason: :timeout})
+      %Jido.Signal.Error{
         type: :dispatch_error,
         message: "Failed to deliver signal",
         details: %{adapter: :http, reason: :timeout},
@@ -479,23 +479,23 @@ defmodule Jido.Error do
 
   ## Examples
 
-      iex> original_error = Jido.Error.execution_error("Failed to process payment")
-      iex> Jido.Error.compensation_error(original_error, %{
+      iex> original_error = Jido.Signal.Error.execution_error("Failed to process payment")
+      iex> Jido.Signal.Error.compensation_error(original_error, %{
       ...>   compensated: true,
       ...>   compensation_result: %{refund_id: "ref_123"}
       ...> })
-      %Jido.Error{
+      %Jido.Signal.Error{
         type: :compensation_error,
         message: "Compensation completed for: Failed to process payment",
         details: %{
           compensated: true,
           compensation_result: %{refund_id: "ref_123"},
-          original_error: %Jido.Error{...}
+          original_error: %Jido.Signal.Error{...}
         }
       }
 
       iex> # For failed compensation:
-      iex> Jido.Error.compensation_error(original_error, %{
+      iex> Jido.Signal.Error.compensation_error(original_error, %{
       ...>   compensated: false,
       ...>   compensation_error: "Refund failed"
       ...> })
@@ -530,8 +530,8 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> error = Jido.Error.validation_error("Invalid input")
-      iex> Jido.Error.to_map(error)
+      iex> error = Jido.Signal.Error.validation_error("Invalid input")
+      iex> Jido.Signal.Error.to_map(error)
       %{
         type: :validation_error,
         message: "Invalid input",
@@ -558,7 +558,7 @@ defmodule Jido.Error do
 
   ## Example
 
-      iex> stacktrace = Jido.Error.capture_stacktrace()
+      iex> stacktrace = Jido.Signal.Error.capture_stacktrace()
       iex> is_list(stacktrace)
       true
   """
@@ -579,7 +579,7 @@ defmodule Jido.Error do
   ## Examples
 
       iex> error = %NimbleOptions.ValidationError{keys_path: [:name], message: "is required"}
-      iex> Jido.Error.format_nimble_config_error(error, "Action")
+      iex> Jido.Signal.Error.format_nimble_config_error(error, "Action")
       "Invalid configuration given to use Jido.Action for key [:name]: is required"
   """
   @spec format_nimble_config_error(
@@ -618,7 +618,7 @@ defmodule Jido.Error do
   ## Examples
 
       iex> error = %NimbleOptions.ValidationError{keys_path: [:input], message: "is required"}
-      iex> Jido.Error.format_nimble_validation_error(error, "Action")
+      iex> Jido.Signal.Error.format_nimble_validation_error(error, "Action")
       "Invalid parameters for Action at [:input]: is required"
   """
   @spec format_nimble_validation_error(
@@ -649,12 +649,12 @@ defmodule Jido.Error do
   def format_nimble_validation_error(error, _module_type, _module), do: inspect(error)
 end
 
-defimpl String.Chars, for: Jido.Error do
+defimpl String.Chars, for: Jido.Signal.Error do
   @doc """
-  Implements String.Chars protocol for Jido.Error.
+  Implements String.Chars protocol for Jido.Signal.Error.
   Returns a human-readable string representation focusing on type and message.
   """
-  def to_string(%Jido.Error{type: type, message: message, details: details}) do
+  def to_string(%Jido.Signal.Error{type: type, message: message, details: details}) do
     base = "[#{type}] #{message}"
 
     if details do
@@ -667,7 +667,7 @@ defimpl String.Chars, for: Jido.Error do
   # Format map details with sorted keys for consistent output
   defp format_details(details) when is_map(details) do
     details
-    |> Enum.reject(fn {_k, v} -> match?(%Jido.Error{}, v) end)
+    |> Enum.reject(fn {_k, v} -> match?(%Jido.Signal.Error{}, v) end)
     |> Enum.sort_by(fn {k, _v} -> Kernel.to_string(k) end)
     |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{format_value(v)}" end)
   end
@@ -685,17 +685,17 @@ defimpl String.Chars, for: Jido.Error do
   defp format_value(value), do: inspect(value)
 end
 
-defimpl Inspect, for: Jido.Error do
+defimpl Inspect, for: Jido.Signal.Error do
   import Inspect.Algebra
 
   @doc """
-  Implements Inspect protocol for Jido.Error.
+  Implements Inspect protocol for Jido.Signal.Error.
   Provides a detailed multi-line representation for debugging.
   """
   def inspect(error, opts) do
     # Start with basic error structure
     parts = [
-      "#Jido.Error<",
+      "#Jido.Signal.Error<",
       concat([
         line(),
         "  type: ",
@@ -776,7 +776,7 @@ defimpl Inspect, for: Jido.Error do
   end
 
   # Handle nested error in details specially (retained from original inspect_details)
-  defp format_error_details(%{original_error: %Jido.Error{}} = details, opts) do
+  defp format_error_details(%{original_error: %Jido.Signal.Error{}} = details, opts) do
     to_doc(Map.delete(details, :original_error), opts)
     |> nest(2)
   end

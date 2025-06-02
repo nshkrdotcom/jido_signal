@@ -65,8 +65,8 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
     GenServer.start_link(__MODULE__, opts, name: via_tuple(id))
   end
 
-  defdelegate via_tuple(id), to: Jido.Util
-  defdelegate whereis(id), to: Jido.Util
+  defdelegate via_tuple(id), to: Jido.Signal.Util
+  defdelegate whereis(id), to: Jido.Signal.Util
 
   @impl GenServer
   def init(opts) do
