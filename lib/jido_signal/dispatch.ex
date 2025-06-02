@@ -237,7 +237,7 @@ defmodule Jido.Signal.Dispatch do
     case validate_opts(config) do
       {:ok, validated_config} ->
         task =
-          Task.Supervisor.async_nolink(Jido.TaskSupervisor, fn ->
+          Task.Supervisor.async_nolink(Jido.Signal.TaskSupervisor, fn ->
             dispatch(signal, validated_config)
           end)
 
@@ -307,7 +307,7 @@ defmodule Jido.Signal.Dispatch do
         batches = Enum.chunk_every(validated_configs_with_idx, batch_size)
 
         Task.Supervisor.async_stream(
-          Jido.TaskSupervisor,
+          Jido.Signal.TaskSupervisor,
           batches,
           fn batch ->
             Enum.map(batch, fn {config, original_idx} ->

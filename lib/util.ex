@@ -27,7 +27,7 @@ defmodule Jido.Util do
 
   - name: The name to register (atom, string, or {name, registry} tuple)
   - opts: Options list
-    - :registry - The registry module to use (defaults to Jido.Registry)
+    - :registry - The registry module to use (defaults to Jido.Signal.Registry)
 
   ## Returns
 
@@ -36,7 +36,7 @@ defmodule Jido.Util do
   ## Examples
 
       iex> Jido.Util.via_tuple(:my_process)
-      {:via, Registry, {Jido.Registry, "my_process"}}
+      {:via, Registry, {Jido.Signal.Registry, "my_process"}}
 
       iex> Jido.Util.via_tuple(:my_process, registry: MyRegistry)
       {:via, Registry, {MyRegistry, "my_process"}}
@@ -53,7 +53,7 @@ defmodule Jido.Util do
   end
 
   def via_tuple(name, opts) do
-    registry = Keyword.get(opts, :registry, Jido.Registry)
+    registry = Keyword.get(opts, :registry, Jido.Signal.Registry)
     name = if is_atom(name), do: Atom.to_string(name), else: name
     {:via, Registry, {registry, name}}
   end
@@ -65,7 +65,7 @@ defmodule Jido.Util do
 
   - server: The process identifier (pid, name, or {name, registry} tuple)
   - opts: Options list
-    - :registry - The registry module to use (defaults to Jido.Registry)
+    - :registry - The registry module to use (defaults to Jido.Signal.Registry)
 
   ## Returns
 
@@ -98,7 +98,7 @@ defmodule Jido.Util do
   end
 
   def whereis(name, opts) do
-    registry = Keyword.get(opts, :registry, Jido.Registry)
+    registry = Keyword.get(opts, :registry, Jido.Signal.Registry)
     name = if is_atom(name), do: Atom.to_string(name), else: name
 
     case Registry.lookup(registry, name) do
