@@ -1,6 +1,8 @@
-# JidoSignal
+# Jido.Signal
 
-**TODO: Add description**
+Message Envelope and Utilities for Jido.
+
+_Currently in development_
 
 ## Installation
 
