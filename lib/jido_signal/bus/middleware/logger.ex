@@ -65,11 +65,7 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
       Logger.log(
         config.level,
-        "Bus #{context.bus_name}: Publishing #{signal_count} signal(s) of types: #{inspect(signal_types)}",
-        bus_name: context.bus_name,
-        signal_count: signal_count,
-        signal_types: signal_types,
-        timestamp: context.timestamp
+        "Bus #{context.bus_name}: Publishing #{signal_count} signal(s) of types: #{inspect(signal_types)} [#{context.timestamp}]"
       )
 
       if config.include_signal_data do
@@ -78,11 +74,7 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
           Logger.log(
             config.level,
-            "Signal #{signal.id} (#{signal.type}): #{data_preview}",
-            signal_id: signal.id,
-            signal_type: signal.type,
-            signal_source: signal.source,
-            signal_data: data_preview
+            "Signal #{signal.id} (#{signal.type}) from #{signal.source}: #{data_preview}"
           )
         end)
       end
@@ -98,10 +90,7 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
       Logger.log(
         config.level,
-        "Bus #{context.bus_name}: Successfully published #{signal_count} signal(s)",
-        bus_name: context.bus_name,
-        signal_count: signal_count,
-        timestamp: context.timestamp
+        "Bus #{context.bus_name}: Successfully published #{signal_count} signal(s) [#{context.timestamp}]"
       )
     end
 
@@ -115,13 +104,7 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
       Logger.log(
         config.level,
-        "Bus #{context.bus_name}: Dispatching signal #{signal.id} (#{signal.type}) to #{dispatch_info}",
-        bus_name: context.bus_name,
-        signal_id: signal.id,
-        signal_type: signal.type,
-        subscriber_path: subscriber.path,
-        dispatch_target: dispatch_info,
-        timestamp: context.timestamp
+        "Bus #{context.bus_name}: Dispatching signal #{signal.id} (#{signal.type}) to #{dispatch_info} via #{subscriber.path} [#{context.timestamp}]"
       )
     end
 
@@ -137,14 +120,7 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
           Logger.log(
             config.level,
-            "Bus #{context.bus_name}: Successfully dispatched signal #{signal.id} to #{dispatch_info}",
-            bus_name: context.bus_name,
-            signal_id: signal.id,
-            signal_type: signal.type,
-            subscriber_path: subscriber.path,
-            dispatch_target: dispatch_info,
-            result: :success,
-            timestamp: context.timestamp
+            "Bus #{context.bus_name}: Successfully dispatched signal #{signal.id} (#{signal.type}) to #{dispatch_info} via #{subscriber.path} [#{context.timestamp}]"
           )
         end
 
@@ -154,15 +130,7 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
           Logger.log(
             :error,
-            "Bus #{context.bus_name}: Failed to dispatch signal #{signal.id} to #{dispatch_info}: #{inspect(reason)}",
-            bus_name: context.bus_name,
-            signal_id: signal.id,
-            signal_type: signal.type,
-            subscriber_path: subscriber.path,
-            dispatch_target: dispatch_info,
-            result: :error,
-            error_reason: reason,
-            timestamp: context.timestamp
+            "Bus #{context.bus_name}: Failed to dispatch signal #{signal.id} (#{signal.type}) to #{dispatch_info} via #{subscriber.path}: #{inspect(reason)} [#{context.timestamp}]"
           )
         end
     end

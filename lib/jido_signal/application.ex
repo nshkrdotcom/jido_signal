@@ -1,4 +1,10 @@
 defmodule Jido.Signal.Application do
+  @moduledoc """
+  The main application module for Jido Signal.
+
+  This module handles the initialization and supervision of the signal processing
+  infrastructure, including the Registry and Task Supervisor.
+  """
   use Application
 
   def start(_type, _args) do

@@ -299,11 +299,11 @@ defmodule Jido.Signal.BusMultiBusE2ETest do
       # Publish system signals to Bus A (should be filtered out)
       Logger.info("Publishing system signals to Bus A (should be filtered)")
       {:ok, recorded_a2} = Bus.publish(bus_a_pid, [system_signal_1, system_signal_2])
-      assert length(recorded_a2) == 0, "System signals should be filtered out by Bus A"
+      assert Enum.empty?(recorded_a2), "System signals should be filtered out by Bus A"
 
       # Publish other signal to Bus A (should be filtered out)
       {:ok, recorded_a3} = Bus.publish(bus_a_pid, [other_signal])
-      assert length(recorded_a3) == 0, "Other signal should be filtered out by Bus A"
+      assert Enum.empty?(recorded_a3), "Other signal should be filtered out by Bus A"
 
       # Publish system signals to Bus B (should be allowed by filter)
       Logger.info("Publishing system signals to Bus B")
@@ -313,7 +313,7 @@ defmodule Jido.Signal.BusMultiBusE2ETest do
       # Publish user signals to Bus B (should be filtered out)
       Logger.info("Publishing user signals to Bus B (should be filtered)")
       {:ok, recorded_b2} = Bus.publish(bus_b_pid, [user_signal_1, user_signal_2])
-      assert length(recorded_b2) == 0, "User signals should be filtered out by Bus B"
+      assert Enum.empty?(recorded_b2), "User signals should be filtered out by Bus B"
 
       # Give time for signal delivery
       Process.sleep(300)

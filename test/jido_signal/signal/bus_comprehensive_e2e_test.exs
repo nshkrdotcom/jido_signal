@@ -245,7 +245,7 @@ defmodule Jido.Signal.BusComprehensiveE2ETest do
 
       # Test replay with no matches
       {:ok, no_matches} = Bus.replay(bus_pid, "non.existent.pattern")
-      assert length(no_matches) == 0, "Should return empty list for non-matching pattern"
+      assert Enum.empty?(no_matches), "Should return empty list for non-matching pattern"
 
       # ===== TEST 6: SNAPSHOT OPERATIONS =====
       Logger.info("Testing snapshot operations")

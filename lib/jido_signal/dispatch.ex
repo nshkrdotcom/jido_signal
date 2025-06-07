@@ -73,7 +73,6 @@ defmodule Jido.Signal.Dispatch do
 
   @type adapter ::
           :pid
-          # | :bus  # TODO: Unsupported - implementation pending
           | :named
           | :pubsub
           | :logger
@@ -96,7 +95,6 @@ defmodule Jido.Signal.Dispatch do
 
   @builtin_adapters %{
     pid: Jido.Signal.Dispatch.PidAdapter,
-    # bus: Jido.Signal.Dispatch.Bus, # TODO: Unsupported - implementation pending
     named: Jido.Signal.Dispatch.Named,
     pubsub: Jido.Signal.Dispatch.PubSub,
     logger: Jido.Signal.Dispatch.LoggerAdapter,
@@ -279,62 +277,80 @@ defmodule Jido.Signal.Dispatch do
     batch_size = Keyword.get(opts, :batch_size, @default_batch_size)
     max_concurrency = Keyword.get(opts, :max_concurrency, @default_max_concurrency)
 
-    # First validate all configs and track their indices
+    validation_results = validate_configs_with_index(configs)
+    {valid_configs, validation_errors} = split_validation_results(validation_results)
+
+    validated_configs_with_idx = extract_validated_configs(valid_configs)
+
+    dispatch_results =
+      process_batches(signal, validated_configs_with_idx, batch_size, max_concurrency)
+
+    validation_errors = extract_validation_errors(validation_errors)
+    dispatch_errors = extract_dispatch_errors(dispatch_results)
+
+    combine_results(validation_errors, dispatch_errors)
+  end
+
+  # Batch processing helpers
+
+  defp validate_configs_with_index(configs) do
     configs_with_index = Enum.with_index(configs)
 
-    validation_results =
-      Enum.map(configs_with_index, fn {config, idx} ->
-        case validate_opts(config) do
-          {:ok, validated_config} -> {:ok, {validated_config, idx}}
-          {:error, reason} -> {:error, {idx, reason}}
-        end
-      end)
-
-    # Separate valid and invalid configs
-    {valid_configs, validation_errors} =
-      Enum.split_with(validation_results, fn
-        {:ok, _} -> true
-        {:error, _} -> false
-      end)
-
-    # Extract configs with their original indices
-    validated_configs_with_idx =
-      Enum.map(valid_configs, fn {:ok, {config, idx}} -> {config, idx} end)
-
-    # Process valid configs in batches
-    dispatch_results =
-      if validated_configs_with_idx != [] do
-        batches = Enum.chunk_every(validated_configs_with_idx, batch_size)
-
-        Task.Supervisor.async_stream(
-          Jido.Signal.TaskSupervisor,
-          batches,
-          fn batch ->
-            Enum.map(batch, fn {config, original_idx} ->
-              case dispatch_single(signal, config) do
-                :ok -> {:ok, original_idx}
-                {:error, reason} -> {:error, {original_idx, reason}}
-              end
-            end)
-          end,
-          max_concurrency: max_concurrency,
-          ordered: true
-        )
-        |> Enum.flat_map(fn {:ok, batch_results} -> batch_results end)
-      else
-        []
+    Enum.map(configs_with_index, fn {config, idx} ->
+      case validate_opts(config) do
+        {:ok, validated_config} -> {:ok, {validated_config, idx}}
+        {:error, reason} -> {:error, {idx, reason}}
       end
+    end)
+  end
 
-    # Extract validation errors
-    validation_errors = Enum.map(validation_errors, fn {:error, error} -> error end)
+  defp split_validation_results(validation_results) do
+    Enum.split_with(validation_results, fn
+      {:ok, _} -> true
+      {:error, _} -> false
+    end)
+  end
 
-    # Check for dispatch errors
-    dispatch_errors =
-      Enum.reduce(dispatch_results, [], fn
-        {:error, error}, acc -> [error | acc]
-        {:ok, _}, acc -> acc
-      end)
+  defp extract_validated_configs(valid_configs) do
+    Enum.map(valid_configs, fn {:ok, {config, idx}} -> {config, idx} end)
+  end
 
+  defp process_batches(signal, validated_configs_with_idx, batch_size, max_concurrency) do
+    if validated_configs_with_idx != [] do
+      batches = Enum.chunk_every(validated_configs_with_idx, batch_size)
+
+      Task.Supervisor.async_stream(
+        Jido.Signal.TaskSupervisor,
+        batches,
+        fn batch ->
+          Enum.map(batch, fn {config, original_idx} ->
+            case dispatch_single(signal, config) do
+              :ok -> {:ok, original_idx}
+              {:error, reason} -> {:error, {original_idx, reason}}
+            end
+          end)
+        end,
+        max_concurrency: max_concurrency,
+        ordered: true
+      )
+      |> Enum.flat_map(fn {:ok, batch_results} -> batch_results end)
+    else
+      []
+    end
+  end
+
+  defp extract_validation_errors(validation_errors) do
+    Enum.map(validation_errors, fn {:error, error} -> error end)
+  end
+
+  defp extract_dispatch_errors(dispatch_results) do
+    Enum.reduce(dispatch_results, [], fn
+      {:error, error}, acc -> [error | acc]
+      {:ok, _}, acc -> acc
+    end)
+  end
+
+  defp combine_results(validation_errors, dispatch_errors) do
     case {validation_errors, dispatch_errors} do
       {[], []} -> :ok
       {errors, []} -> {:error, Enum.reverse(errors)}
@@ -398,18 +414,19 @@ defmodule Jido.Signal.Dispatch do
   end
 
   defp validate_single_config({adapter, opts}) when is_atom(adapter) and is_list(opts) do
-    with {:ok, adapter_module} <- resolve_adapter(adapter) do
-      if adapter_module == nil do
-        {:ok, {adapter, opts}}
-      else
-        with {:ok, validated_opts} <- adapter_module.validate_opts(opts) do
-          {:ok, {adapter, validated_opts}}
+    case resolve_adapter(adapter) do
+      {:ok, adapter_module} ->
+        if adapter_module == nil do
+          {:ok, {adapter, opts}}
         else
-          {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
+          case adapter_module.validate_opts(opts) do
+            {:ok, validated_opts} -> {:ok, {adapter, validated_opts}}
+            {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
+          end
         end
-      end
-    else
-      {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
+
+      {:error, reason} ->
+        normalize_error(reason, adapter, {adapter, opts})
     end
   end
 
@@ -432,23 +449,7 @@ defmodule Jido.Signal.Dispatch do
 
     :telemetry.execute([:jido, :dispatch, :start], %{}, metadata)
 
-    result =
-      with {:ok, adapter_module} <- resolve_adapter(adapter) do
-        if adapter_module == nil do
-          :ok
-        else
-          with {:ok, validated_opts} <- adapter_module.validate_opts(opts) do
-            case adapter_module.deliver(signal, validated_opts) do
-              :ok -> :ok
-              {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
-            end
-          else
-            {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
-          end
-        end
-      else
-        {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
-      end
+    result = do_dispatch_single(signal, {adapter, opts})
 
     end_time = System.monotonic_time(:millisecond)
     latency_ms = end_time - start_time
@@ -464,6 +465,31 @@ defmodule Jido.Signal.Dispatch do
     end
 
     result
+  end
+
+  defp do_dispatch_single(signal, {adapter, opts}) do
+    case resolve_adapter(adapter) do
+      {:ok, adapter_module} ->
+        do_dispatch_with_adapter(signal, adapter_module, {adapter, opts})
+
+      {:error, reason} ->
+        normalize_error(reason, adapter, {adapter, opts})
+    end
+  end
+
+  defp do_dispatch_with_adapter(_signal, nil, {_adapter, _opts}), do: :ok
+
+  defp do_dispatch_with_adapter(signal, adapter_module, {adapter, opts}) do
+    case adapter_module.validate_opts(opts) do
+      {:ok, validated_opts} ->
+        case adapter_module.deliver(signal, validated_opts) do
+          :ok -> :ok
+          {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
+        end
+
+      {:error, reason} ->
+        normalize_error(reason, adapter, {adapter, opts})
+    end
   end
 
   defp resolve_adapter(nil), do: {:ok, nil}

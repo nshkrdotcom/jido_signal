@@ -2,6 +2,8 @@ defmodule Jido.Signal.MixProject do
   use Mix.Project
 
   @version "1.0.0"
+  @source_url "https://github.com/agentjido/jido_signal"
+  @description "Agent Communication Envelope and Utilities"
 
   def vsn do
     @version
@@ -19,9 +21,9 @@ defmodule Jido.Signal.MixProject do
 
       # Docs
       name: "Jido Signal",
-      description: "Message Envelope and Utilities for Jido",
-      source_url: "https://github.com/agentjido/jido_signal",
-      homepage_url: "https://github.com/agentjido/jido_signal",
+      description: @description,
+      source_url: @source_url,
+      homepage_url: @source_url,
       package: package(),
       docs: docs(),
 
@@ -68,7 +70,7 @@ defmodule Jido.Signal.MixProject do
       maintainers: ["Mike Hostetler"],
       licenses: ["Apache-2.0"],
       links: %{
-        "GitHub" => "https://github.com/agentjido/jido_signal",
+        "GitHub" => @source_url,
         "AgentJido.xyz" => "https://agentjido.xyz",
         "Jido Workbench" => "https://github.com/agentjido/jido_workbench"
       }
