@@ -43,6 +43,9 @@ defmodule Jido.Signal.Bus.Middleware.Logger do
 
   require Logger
 
+  @type context :: Jido.Signal.Bus.Middleware.context()
+  @type dispatch_result :: Jido.Signal.Bus.Middleware.dispatch_result()
+
   @impl true
   def init(opts) do
     config = %{

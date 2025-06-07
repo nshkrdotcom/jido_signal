@@ -9,6 +9,12 @@ defmodule Jido.Signal.Registry do
   use ExDbug, enabled: false
 
   typedstruct module: Subscription do
+    @moduledoc """
+    Represents a subscription to signal patterns in the registry.
+
+    A subscription maps a signal path pattern to a dispatch configuration,
+    allowing signals matching the pattern to be routed to the specified target.
+    """
     @typedoc "A single subscription mapping a path to dispatch configuration"
     field(:id, String.t(), enforce: true)
     field(:path, String.t(), enforce: true)

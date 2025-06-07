@@ -30,6 +30,8 @@ defmodule Jido.Signal.Router.Validator do
     * `{:ok, [%Route{}]}` - List of normalized Route structs
     * `{:error, term()}` - If normalization fails
   """
+  @spec normalize(Route.t() | list(Route.t() | tuple()) | tuple()) ::
+          {:ok, list(Route.t())} | {:error, term()}
   def normalize(%Route{} = route), do: {:ok, [route]}
 
   def normalize(routes) when is_list(routes) do
@@ -212,6 +214,7 @@ defmodule Jido.Signal.Router.Validator do
   - `{:ok, path}` if valid
   - `{:error, reason}` if invalid
   """
+  @spec validate_path(String.t()) :: {:ok, String.t()} | {:error, term()}
   def validate_path(path) when is_binary(path) do
     cond do
       String.contains?(path, "..") ->
@@ -250,6 +253,7 @@ defmodule Jido.Signal.Router.Validator do
     end
   end
 
+  @spec validate_path(term()) :: {:error, term()}
   def validate_path(_invalid) do
     {:error, Error.routing_error("Path must be a string")}
   end
@@ -271,6 +275,7 @@ defmodule Jido.Signal.Router.Validator do
   ## Returns
   - `{:ok, target}` - Always succeeds
   """
+  @spec validate_target(term()) :: {:ok, term()} | {:error, term()}
   def validate_target(target) do
     # Accept any term as a target - the router is agnostic about what it stores
     {:ok, target}
@@ -286,6 +291,7 @@ defmodule Jido.Signal.Router.Validator do
   - `{:ok, match_fn}` if valid
   - `{:error, reason}` if invalid
   """
+  @spec validate_match(nil | function() | term()) :: {:ok, nil | function()} | {:error, term()}
   def validate_match(nil) do
     {:ok, nil}
   end
@@ -329,6 +335,7 @@ defmodule Jido.Signal.Router.Validator do
   - `{:ok, priority}` if valid
   - `{:error, reason}` if invalid
   """
+  @spec validate_priority(nil | integer() | term()) :: {:ok, integer()} | {:error, term()}
   def validate_priority(nil), do: {:ok, @default_priority}
 
   def validate_priority(priority) when is_integer(priority) do

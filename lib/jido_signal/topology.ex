@@ -11,6 +11,13 @@ defmodule Jido.Signal.Topology do
   use TypedStruct
 
   typedstruct module: ProcessNode do
+    @moduledoc """
+    Represents a single process node in the process hierarchy topology.
+
+    Contains information about a process including its PID, relationships to other
+    processes, and associated metadata. Used to track parent-child relationships
+    and query the process hierarchy structure.
+    """
     @typedoc "Represents a single process in the hierarchy"
     field(:id, String.t(), enforce: true)
     field(:pid, pid(), enforce: true)

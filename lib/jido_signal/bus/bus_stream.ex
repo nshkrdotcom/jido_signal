@@ -18,6 +18,8 @@ defmodule Jido.Signal.Bus.Stream do
   Filters signals from the bus state's log based on type pattern and timestamp.
   The type pattern is used for matching against the signal's type field.
   """
+  @spec filter(BusState.t(), String.t(), integer() | nil, keyword()) ::
+          {:ok, list(Jido.Signal.Bus.RecordedSignal.t())} | {:error, atom()}
   def filter(%BusState{} = state, type_pattern, start_timestamp \\ nil, opts \\ []) do
     try do
       batch_size = Keyword.get(opts, :batch_size, 1_000)
@@ -133,7 +135,7 @@ defmodule Jido.Signal.Bus.Stream do
   Only accepts proper Jido.Signal structs to ensure system integrity.
   Signals are recorded and routed in the exact order they are received.
   """
-
+  @spec publish(BusState.t(), list(Signal.t())) :: {:ok, BusState.t()} | {:error, atom()}
   def publish(%BusState{} = state, signals) when is_list(signals) do
     dbug("publish", signals: signals)
 
@@ -161,6 +163,7 @@ defmodule Jido.Signal.Bus.Stream do
   @doc """
   Acknowledges a signal for a given subscription.
   """
+  @spec ack(BusState.t(), String.t(), Signal.t()) :: {:ok, BusState.t()} | {:error, atom()}
   def ack(%BusState{} = state, subscription_id, %Signal{} = signal) do
     dbug("ack", subscription_id: subscription_id, signal: signal)
 
@@ -184,6 +187,7 @@ defmodule Jido.Signal.Bus.Stream do
   Truncates the signal log to the specified maximum size.
   Keeps the most recent signals and discards older ones.
   """
+  @spec truncate(BusState.t(), non_neg_integer()) :: {:ok, BusState.t()}
   def truncate(%BusState{} = state, max_size) when is_integer(max_size) and max_size >= 0 do
     BusState.truncate_log(state, max_size)
   end
@@ -191,10 +195,12 @@ defmodule Jido.Signal.Bus.Stream do
   @doc """
   Clears all signals from the log.
   """
+  @spec clear(BusState.t()) :: {:ok, BusState.t()}
   def clear(%BusState{} = state) do
     BusState.clear_log(state)
   end
 
+  @spec validate_signals(list(term())) :: :ok | {:error, term()}
   defp validate_signals(signals) do
     invalid_signals =
       Enum.reject(signals, fn signal ->

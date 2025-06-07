@@ -516,6 +516,35 @@ defmodule Jido.Signal do
     end
   end
 
+  @doc """
+  Converts a struct or list of structs to Signal data format.
+
+  This function is useful for converting domain objects to Signal format
+  while preserving their type information through the TypeProvider.
+
+  ## Parameters
+
+  - `signals`: A struct or list of structs to convert
+  - `fields`: Additional fields to include (currently unused)
+
+  ## Returns
+
+  Signal struct or list of Signal structs with the original data as payload
+
+  ## Examples
+
+      # Converting a single struct
+      iex> user = %User{id: 1, name: "John"}
+      iex> signal = Jido.Signal.map_to_signal_data(user)
+      iex> signal.data
+      %User{id: 1, name: "John"}
+
+      # Converting multiple structs
+      iex> users = [%User{id: 1}, %User{id: 2}]
+      iex> signals = Jido.Signal.map_to_signal_data(users)
+      iex> length(signals)
+      2
+  """
   def map_to_signal_data(signals, fields \\ [])
 
   @spec map_to_signal_data(list(struct), Keyword.t()) :: list(t())

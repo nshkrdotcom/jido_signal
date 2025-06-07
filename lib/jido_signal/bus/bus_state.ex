@@ -65,6 +65,7 @@ defmodule Jido.Signal.Bus.State do
     end
   end
 
+  @spec log_to_list(t()) :: list(Signal.t())
   def log_to_list(%__MODULE__{} = state) do
     state.log
     |> Map.values()
@@ -75,6 +76,7 @@ defmodule Jido.Signal.Bus.State do
   Truncates the signal log to the specified maximum size.
   Keeps the most recent signals and discards older ones.
   """
+  @spec truncate_log(t(), non_neg_integer()) :: {:ok, t()}
   def truncate_log(%__MODULE__{} = state, max_size) when is_integer(max_size) and max_size >= 0 do
     if map_size(state.log) <= max_size do
       # No truncation needed
@@ -98,10 +100,25 @@ defmodule Jido.Signal.Bus.State do
   @doc """
   Clears all signals from the log.
   """
+  @spec clear_log(t()) :: {:ok, t()}
   def clear_log(%__MODULE__{} = state) do
     {:ok, %{state | log: %{}}}
   end
 
+  @doc """
+  Adds a route to the router in the bus state.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `route`: The route to add to the router
+
+  ## Returns
+
+  - `{:ok, new_state}` if successful
+  - `{:error, reason}` if the route addition fails
+  """
+  @spec add_route(t(), Router.Route.t()) :: {:ok, t()} | {:error, term()}
   def add_route(%__MODULE__{} = state, route) do
     case Router.add(state.router, route) do
       {:ok, new_router} -> {:ok, %{state | router: new_router}}
@@ -109,6 +126,20 @@ defmodule Jido.Signal.Bus.State do
     end
   end
 
+  @doc """
+  Removes a route from the router in the bus state.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `route`: The route to remove (can be a Route struct or path string)
+
+  ## Returns
+
+  - `{:ok, new_state}` if successful
+  - `{:error, :route_not_found}` if the route doesn't exist
+  """
+  @spec remove_route(t(), Router.Route.t() | String.t()) :: {:ok, t()} | {:error, atom()}
   def remove_route(%__MODULE__{} = state, %Router.Route{} = route) do
     # Extract the path from the route
     path = route.path
@@ -142,14 +173,56 @@ defmodule Jido.Signal.Bus.State do
     end
   end
 
+  @doc """
+  Checks if a subscription exists in the bus state.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `subscription_id`: The ID of the subscription to check
+
+  ## Returns
+
+  `true` if the subscription exists, `false` otherwise
+  """
+  @spec has_subscription?(t(), String.t()) :: boolean()
   def has_subscription?(%__MODULE__{} = state, subscription_id) do
     Map.has_key?(state.subscriptions, subscription_id)
   end
 
+  @doc """
+  Retrieves a subscription from the bus state.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `subscription_id`: The ID of the subscription to retrieve
+
+  ## Returns
+
+  The subscription struct if found, `nil` otherwise
+  """
+  @spec get_subscription(t(), String.t()) :: Jido.Signal.Bus.Subscriber.t() | nil
   def get_subscription(%__MODULE__{} = state, subscription_id) do
     Map.get(state.subscriptions, subscription_id)
   end
 
+  @doc """
+  Adds a subscription to the bus state and creates a corresponding route.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `subscription_id`: The unique ID for the subscription
+  - `subscription`: The subscription struct to add
+
+  ## Returns
+
+  - `{:ok, new_state}` if successful
+  - `{:error, :subscription_exists}` if a subscription with this ID already exists
+  """
+  @spec add_subscription(t(), String.t(), Jido.Signal.Bus.Subscriber.t()) ::
+          {:ok, t()} | {:error, atom()}
   def add_subscription(%__MODULE__{} = state, subscription_id, subscription) do
     if has_subscription?(state, subscription_id) do
       {:error, :subscription_exists}
@@ -163,6 +236,22 @@ defmodule Jido.Signal.Bus.State do
     end
   end
 
+  @doc """
+  Removes a subscription from the bus state and its corresponding route.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `subscription_id`: The ID of the subscription to remove
+  - `opts`: Options including:
+    - `:delete_persistence` - Whether to delete persistence (default: true)
+
+  ## Returns
+
+  - `{:ok, new_state}` if successful
+  - `{:error, :subscription_not_found}` if the subscription doesn't exist
+  """
+  @spec remove_subscription(t(), String.t(), keyword()) :: {:ok, t()} | {:error, atom()}
   def remove_subscription(%__MODULE__{} = state, subscription_id, opts \\ []) do
     delete_persistence = Keyword.get(opts, :delete_persistence, true)
 
@@ -179,6 +268,7 @@ defmodule Jido.Signal.Bus.State do
     end
   end
 
+  @spec subscription_to_route(Jido.Signal.Bus.Subscriber.t()) :: Router.Route.t()
   defp subscription_to_route(subscription) do
     %Router.Route{
       # Use the path pattern for matching

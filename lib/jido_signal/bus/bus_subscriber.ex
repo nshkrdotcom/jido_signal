@@ -87,6 +87,22 @@ defmodule Jido.Signal.Bus.Subscriber do
     end
   end
 
+  @doc """
+  Unsubscribes from the bus by removing the subscription and cleaning up resources.
+
+  For persistent subscriptions, this also terminates the associated process.
+
+  ## Parameters
+
+  - `state`: The current bus state
+  - `subscription_id`: The unique identifier of the subscription to remove
+  - `opts`: Additional options (currently unused)
+
+  ## Returns
+
+  - `{:ok, new_state}` if successful
+  - `{:error, Error.t()}` if the subscription doesn't exist or removal fails
+  """
   @spec unsubscribe(BusState.t(), String.t(), keyword()) ::
           {:ok, BusState.t()} | {:error, Error.t()}
   def unsubscribe(%BusState{} = state, subscription_id, _opts \\ []) do
@@ -122,6 +138,7 @@ defmodule Jido.Signal.Bus.Subscriber do
   end
 
   # Helper function to extract client PID from dispatch configuration
+  @spec extract_client_pid(term()) :: pid() | nil
   defp extract_client_pid({:pid, opts}) when is_list(opts) do
     dbug("extracting client pid", opts: opts)
     Keyword.get(opts, :target)
