@@ -1,7 +1,7 @@
 defmodule Jido.Signal.DispatchErrorNormalizationTest do
   use ExUnit.Case, async: true
-  alias Jido.Signal.Dispatch
   alias Jido.Signal
+  alias Jido.Signal.Dispatch
   alias Jido.Signal.Error
 
   # Test with error normalization enabled per test

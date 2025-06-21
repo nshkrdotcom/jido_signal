@@ -11,8 +11,8 @@ defmodule Jido.Signal.Bus.Subscriber do
   use TypedStruct
   use ExDbug, enabled: false
 
-  alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.Bus.State, as: BusState
+  alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.Error
 
   typedstruct do

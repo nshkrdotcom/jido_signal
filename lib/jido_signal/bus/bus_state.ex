@@ -65,6 +65,26 @@ defmodule Jido.Signal.Bus.State do
     end
   end
 
+  @doc """
+  Converts the signal log from a map to a sorted list.
+
+  ## Parameters
+
+  - `state`: The current bus state
+
+  ## Returns
+
+  A list of signals sorted by their IDs
+
+  ## Examples
+
+      iex> state = %Jido.Signal.Bus.State{log: %{"2" => signal2, "1" => signal1}}
+      iex> signals = Jido.Signal.Bus.State.log_to_list(state)
+      iex> length(signals)
+      2
+      iex> Enum.map(signals, & &1.id)
+      ["1", "2"]
+  """
   @spec log_to_list(t()) :: list(Signal.t())
   def log_to_list(%__MODULE__{} = state) do
     state.log

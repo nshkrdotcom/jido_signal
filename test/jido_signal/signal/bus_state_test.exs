@@ -1,9 +1,9 @@
 defmodule JidoTest.Signal.Bus.StateTest do
   use ExUnit.Case, async: true
-  alias Jido.Signal.Bus.State
-  alias Jido.Signal.Router
   alias Jido.Signal
+  alias Jido.Signal.Bus.State
   alias Jido.Signal.ID
+  alias Jido.Signal.Router
 
   describe "append_signals/2" do
     setup do

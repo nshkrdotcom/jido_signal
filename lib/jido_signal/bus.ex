@@ -13,12 +13,12 @@ defmodule Jido.Signal.Bus do
   require Logger
   use ExDbug, enabled: false
   use TypedStruct
-  alias Jido.Signal.Router
+  alias Jido.Signal.Bus.MiddlewarePipeline
+  alias Jido.Signal.Bus.Snapshot
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Stream
-  alias Jido.Signal.Bus.Snapshot
-  alias Jido.Signal.Bus.MiddlewarePipeline
   alias Jido.Signal.Error
+  alias Jido.Signal.Router
 
   @type start_option ::
           {:name, atom()}
@@ -84,6 +84,36 @@ defmodule Jido.Signal.Bus do
     end
   end
 
+  @doc """
+  Starts a new bus process and links it to the calling process.
+
+  ## Parameters
+
+  - `opts`: Options for starting the bus:
+    - `:name` - The name to register the bus under (required)
+    - `:router` - A custom router implementation (optional)
+    - `:middleware` - A list of {module, opts} tuples for middleware (optional)
+
+  ## Returns
+
+  - `{:ok, pid}` if the bus starts successfully
+  - `{:error, reason}` if the bus fails to start
+
+  ## Examples
+
+      iex> {:ok, pid} = Jido.Signal.Bus.start_link(name: :my_bus)
+      iex> is_pid(pid)
+      true
+
+      iex> {:ok, pid} = Jido.Signal.Bus.start_link([
+      ...>   name: :my_bus,
+      ...>   router: custom_router,
+      ...>   middleware: [{MyMiddleware, []}]
+      ...> ])
+      iex> is_pid(pid)
+      true
+  """
+  @spec start_link(keyword()) :: {:ok, pid()} | {:error, term()}
   def start_link(opts) do
     dbug("start_link", opts: opts)
     name = Keyword.fetch!(opts, :name)

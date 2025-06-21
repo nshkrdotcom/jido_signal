@@ -334,9 +334,8 @@ defmodule Jido.Signal do
                     {:ok, Map.new(validated_data)}
 
                   {:error, %NimbleOptions.ValidationError{} = error} ->
-                    error
-                    |> Jido.Signal.Error.format_nimble_validation_error("Signal", __MODULE__)
-                    |> (fn reason -> {:error, reason} end).()
+                    reason = Jido.Signal.Error.format_nimble_validation_error(error, "Signal", __MODULE__)
+                    {:error, reason}
                 end
             end
           end
@@ -565,28 +564,36 @@ defmodule Jido.Signal do
   end
 
   # Parser functions for standard CloudEvents fields
+
+  @spec parse_specversion(map()) :: :ok | {:error, String.t()}
   defp parse_specversion(%{"specversion" => "1.0.2"}), do: :ok
   defp parse_specversion(%{"specversion" => x}), do: {:error, "unexpected specversion #{x}"}
   defp parse_specversion(_), do: {:error, "missing specversion"}
 
+  @spec parse_type(map()) :: {:ok, String.t()} | {:error, String.t()}
   defp parse_type(%{"type" => type}) when byte_size(type) > 0, do: {:ok, type}
   defp parse_type(_), do: {:error, "missing type"}
 
+  @spec parse_source(map()) :: {:ok, String.t()} | {:error, String.t()}
   defp parse_source(%{"source" => source}) when byte_size(source) > 0, do: {:ok, source}
   defp parse_source(_), do: {:error, "missing source"}
 
+  @spec parse_id(map()) :: {:ok, String.t()} | {:error, String.t()}
   defp parse_id(%{"id" => id}) when byte_size(id) > 0, do: {:ok, id}
   defp parse_id(%{"id" => ""}), do: {:error, "id given but empty"}
   defp parse_id(_), do: {:ok, ID.generate!()}
 
+  @spec parse_subject(map()) :: {:ok, String.t() | nil} | {:error, String.t()}
   defp parse_subject(%{"subject" => sub}) when byte_size(sub) > 0, do: {:ok, sub}
   defp parse_subject(%{"subject" => ""}), do: {:error, "subject given but empty"}
   defp parse_subject(_), do: {:ok, nil}
 
+  @spec parse_time(map()) :: {:ok, String.t() | nil} | {:error, String.t()}
   defp parse_time(%{"time" => time}) when byte_size(time) > 0, do: {:ok, time}
   defp parse_time(%{"time" => ""}), do: {:error, "time given but empty"}
   defp parse_time(_), do: {:ok, nil}
 
+  @spec parse_datacontenttype(map()) :: {:ok, String.t() | nil} | {:error, String.t()}
   defp parse_datacontenttype(%{"datacontenttype" => ct}) when byte_size(ct) > 0, do: {:ok, ct}
 
   defp parse_datacontenttype(%{"datacontenttype" => ""}),
@@ -594,13 +601,16 @@ defmodule Jido.Signal do
 
   defp parse_datacontenttype(_), do: {:ok, nil}
 
+  @spec parse_dataschema(map()) :: {:ok, String.t() | nil} | {:error, String.t()}
   defp parse_dataschema(%{"dataschema" => schema}) when byte_size(schema) > 0, do: {:ok, schema}
   defp parse_dataschema(%{"dataschema" => ""}), do: {:error, "dataschema given but empty"}
   defp parse_dataschema(_), do: {:ok, nil}
 
+  @spec parse_data(term()) :: {:ok, term()} | {:error, String.t()}
   defp parse_data(""), do: {:error, "data field given but empty"}
   defp parse_data(data), do: {:ok, data}
 
+  @spec parse_jido_dispatch(term()) :: {:ok, term() | nil} | {:error, String.t()}
   defp parse_jido_dispatch(nil), do: {:ok, nil}
 
   defp parse_jido_dispatch({adapter, opts} = config) when is_atom(adapter) and is_list(opts) do

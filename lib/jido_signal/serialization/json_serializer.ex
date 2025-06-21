@@ -10,8 +10,8 @@ if Code.ensure_loaded?(Jason) do
 
     @behaviour Jido.Signal.Serialization.Serializer
 
-    alias Jido.Signal.Serialization.TypeProvider
     alias Jido.Signal.Serialization.JsonDecoder
+    alias Jido.Signal.Serialization.TypeProvider
 
     @doc """
     Serialize given term to JSON binary data.

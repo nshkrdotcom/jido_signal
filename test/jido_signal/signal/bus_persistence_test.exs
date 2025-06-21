@@ -1,8 +1,8 @@
 defmodule JidoTest.Signal.Bus.PersistentSubscriptionTest do
   use ExUnit.Case, async: true
-  alias Jido.Signal.Bus.PersistentSubscription
   alias Jido.Signal
   alias Jido.Signal.Bus
+  alias Jido.Signal.Bus.PersistentSubscription
   alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.ID
   require Logger

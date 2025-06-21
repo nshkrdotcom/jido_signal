@@ -5,8 +5,8 @@ defmodule Jido.Signal.Router.Validator do
 
   use ExDbug, enabled: false
 
-  alias Jido.Signal.Error
   alias Jido.Signal
+  alias Jido.Signal.Error
   alias Jido.Signal.Router.Route
 
   @default_priority 0
@@ -216,12 +216,10 @@ defmodule Jido.Signal.Router.Validator do
   """
   @spec validate_path(String.t()) :: {:ok, String.t()} | {:error, term()}
   def validate_path(path) when is_binary(path) do
-    cond do
-      String.contains?(path, "..") ->
-        {:error, Error.routing_error("Path cannot contain consecutive dots")}
-
-      true ->
-        segments = String.split(path, ".")
+    if String.contains?(path, "..") do
+      {:error, Error.routing_error("Path cannot contain consecutive dots")}
+    else
+      segments = String.split(path, ".")
 
         # Check for consecutive ** segments first
         consecutive_wildcards? =

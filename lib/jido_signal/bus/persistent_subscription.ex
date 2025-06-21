@@ -399,6 +399,7 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
   # Private Helpers
 
   # Helper function to process pending signals if we have capacity
+  @spec process_pending_signals(t()) :: t()
   defp process_pending_signals(state) do
     # Check if we have pending signals and space in the in-flight queue
     available_capacity = state.max_in_flight - map_size(state.in_flight_signals)

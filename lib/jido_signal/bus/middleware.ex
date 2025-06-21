@@ -150,20 +150,33 @@ defmodule Jido.Signal.Bus.Middleware do
       def init(_opts), do: {:ok, %{}}
 
       @impl true
-      @spec before_publish([Signal.t()], context(), map()) :: {:cont, [Signal.t()], map()}
+      @spec before_publish([Signal.t()], Jido.Signal.Bus.Middleware.context(), map()) ::
+              {:cont, [Signal.t()], map()}
       def before_publish(signals, _context, state), do: {:cont, signals, state}
 
       @impl true
-      @spec after_publish([Signal.t()], context(), map()) :: {:cont, [Signal.t()], map()}
+      @spec after_publish([Signal.t()], Jido.Signal.Bus.Middleware.context(), map()) ::
+              {:cont, [Signal.t()], map()}
       def after_publish(signals, _context, state), do: {:cont, signals, state}
 
       @impl true
-      @spec before_dispatch(Signal.t(), Subscriber.t(), context(), map()) ::
+      @spec before_dispatch(
+              Signal.t(),
+              Subscriber.t(),
+              Jido.Signal.Bus.Middleware.context(),
+              map()
+            ) ::
               {:cont, Signal.t(), map()}
       def before_dispatch(signal, _subscriber, _context, state), do: {:cont, signal, state}
 
       @impl true
-      @spec after_dispatch(Signal.t(), Subscriber.t(), dispatch_result(), context(), map()) ::
+      @spec after_dispatch(
+              Signal.t(),
+              Subscriber.t(),
+              Jido.Signal.Bus.Middleware.dispatch_result(),
+              Jido.Signal.Bus.Middleware.context(),
+              map()
+            ) ::
               {:cont, map()}
       def after_dispatch(_signal, _subscriber, _result, _context, state), do: {:cont, state}
 

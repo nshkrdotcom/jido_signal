@@ -393,7 +393,7 @@ defmodule Jido.Signal.Dispatch do
     end
   end
 
-  defp should_normalize_errors?() do
+  defp should_normalize_errors? do
     @normalize_errors_compile_time or
       Application.get_env(:jido, :normalize_dispatch_errors, false)
   end

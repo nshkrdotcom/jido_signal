@@ -100,6 +100,25 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
 
   # Server Callbacks
 
+  @doc """
+  Initializes the ETS adapter with the given table name prefix.
+
+  ## Parameters
+
+  - `prefix`: The prefix to use for table names
+
+  ## Returns
+
+  - `{:ok, adapter}` if initialization succeeds
+  - `{:error, reason}` if initialization fails
+
+  ## Examples
+
+      iex> {:ok, adapter} = Jido.Signal.Journal.Adapters.ETS.init("my_journal_")
+      iex> adapter.signals_table
+      :my_journal_signals_...
+  """
+  @spec init(String.t()) :: {:ok, t()} | {:error, term()}
   @impl GenServer
   def init(prefix) do
     adapter = %__MODULE__{
@@ -134,6 +153,27 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
     {:ok, adapter}
   end
 
+  @doc """
+  Handles GenServer calls for signal operations.
+
+  ## Parameters
+
+  - `{:put_signal, signal}` - Stores a signal in the journal
+  - `{:get_signal, signal_id}` - Retrieves a signal by ID
+  - `{:put_cause, cause_id, effect_id}` - Records a cause-effect relationship
+  - `{:get_effects, signal_id}` - Gets all effects for a signal
+  - `{:get_cause, signal_id}` - Gets the cause for a signal
+  - `{:put_conversation, conversation_id, signal_id}` - Adds a signal to a conversation
+  - `{:get_conversation, conversation_id}` - Gets all signals in a conversation
+  - `:get_all_signals` - Gets all signals in the journal
+  - `:cleanup` - Cleans up all ETS tables
+
+  ## Returns
+
+  - `{:reply, result, adapter}` for successful operations
+  - `{:reply, {:error, reason}, adapter}` for failed operations
+  """
+  @spec handle_call(term(), {pid(), term()}, t()) :: {:reply, term(), t()}
   @impl GenServer
   def handle_call({:put_signal, signal}, _from, adapter) do
     true = :ets.insert(adapter.signals_table, {signal.id, signal})

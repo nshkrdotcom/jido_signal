@@ -60,7 +60,22 @@ defmodule Jido.Signal.MixProject do
   def docs do
     [
       main: "readme",
-      extras: ["README.md"]
+      extras: [
+        "README.md",
+        "guides/getting-started.md",
+        "guides/introduction/what-is-jido-signal.md",
+        "guides/introduction/core-components.md",
+        "guides/introduction/when-to-use.md",
+        "guides/core-concepts/signal-structure.md",
+        "guides/core-concepts/signal-bus.md",
+        "guides/core-concepts/router.md",
+        "guides/core-concepts/dispatch-system.md"
+      ],
+      groups_for_extras: [
+        Introduction: ~r/guides\/introduction\/.*/,
+        "Getting Started": ~r/guides\/getting-started.*/,
+        "Core Concepts": ~r/guides\/core-concepts\/.*/
+      ]
     ]
   end
 

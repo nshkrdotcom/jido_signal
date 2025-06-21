@@ -2,7 +2,7 @@ defmodule Jido.Signal.SerializationStrategiesTest do
   use ExUnit.Case, async: true
 
   alias Jido.Signal
-  alias Jido.Signal.Serialization.{JsonSerializer, ErlangTermSerializer, MsgpackSerializer}
+  alias Jido.Signal.Serialization.{ErlangTermSerializer, JsonSerializer, MsgpackSerializer}
 
   @serializers [
     {"JSON", JsonSerializer},

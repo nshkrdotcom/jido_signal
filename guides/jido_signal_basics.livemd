@@ -1,0 +1,434 @@
+# Jido Signal Basics - Interactive Guide
+
+```elixir
+Mix.install([
+  {:jido_signal, "~> 1.0"}
+])
+```
+
+## Introduction
+
+Welcome to the Jido Signal interactive guide! This Livebook will walk you through the core concepts and basic usage of Jido Signal, a powerful toolkit for building event-driven and agent-based systems in Elixir.
+
+Jido Signal provides:
+- **Standardized messaging** using CloudEvents v1.0.2 specification
+- **High-performance Signal Bus** for pub/sub communication
+- **Advanced routing** with pattern matching and wildcards
+- **Flexible dispatch** to multiple destinations
+- **Causality tracking** for complete system observability
+
+Let's dive in and explore these concepts with hands-on examples!
+
+## Section 1: Creating Your First Signal
+
+A **Signal** is a CloudEvents-compliant message envelope that carries your application's events. Let's create our first signal:
+
+```elixir
+# Basic signal creation
+{:ok, basic_signal} = Jido.Signal.new(%{
+  type: "user.created",
+  source: "/auth/registration",
+  data: %{user_id: "123", email: "user@example.com", name: "John Doe"}
+})
+
+IO.inspect(basic_signal, label: "Basic Signal")
+```
+
+Every signal has essential fields:
+- `id`: Unique identifier (auto-generated)
+- `type`: Event type (e.g., "user.created")
+- `source`: Where the event originated
+- `time`: When the event occurred (auto-generated)
+- `data`: The actual event payload
+
+```elixir
+# Explore signal structure
+IO.puts("Signal ID: #{basic_signal.id}")
+IO.puts("Signal Type: #{basic_signal.type}")
+IO.puts("Signal Source: #{basic_signal.source}")
+IO.puts("Signal Time: #{basic_signal.time}")
+IO.puts("Signal Data: #{inspect(basic_signal.data)}")
+```
+
+## Section 2: Custom Signal Types
+
+For better structure and validation, you can define custom signal types:
+
+```elixir
+defmodule UserCreated do
+  use Jido.Signal,
+    type: "user.created.v1",
+    default_source: "/auth/users",
+    schema: [
+      user_id: [type: :string, required: true],
+      email: [type: :string, required: true, format: ~r/@/],
+      name: [type: :string, required: true]
+    ]
+end
+
+# Create a typed signal
+{:ok, typed_signal} = UserCreated.new(%{
+  user_id: "u_456",
+  email: "jane@example.com",
+  name: "Jane Smith"
+})
+
+IO.inspect(typed_signal, label: "Typed Signal")
+```
+
+Let's see what happens with invalid data:
+
+```elixir
+# This will fail validation
+case UserCreated.new(%{user_id: "u_789", email: "invalid-email"}) do
+  {:ok, signal} -> IO.puts("Signal created successfully")
+  {:error, reason} -> IO.puts("Validation error: #{reason}")
+end
+```
+
+## Section 3: Starting a Signal Bus
+
+The **Signal Bus** is the heart of Jido Signal - it manages subscriptions, routing, and message delivery. Let's start one:
+
+```elixir
+# Start a Signal Bus
+{:ok, bus_pid} = Jido.Signal.Bus.start_link(name: :demo_bus)
+
+IO.puts("Signal Bus started successfully!")
+IO.inspect(bus_pid, label: "Bus PID")
+```
+
+## Section 4: Subscribing to Signals
+
+Now let's create a simple subscriber that will receive signals:
+
+```elixir
+defmodule SimpleSubscriber do
+  use GenServer
+
+  def start_link(name) do
+    GenServer.start_link(__MODULE__, %{name: name}, name: name)
+  end
+
+  def init(state) do
+    IO.puts("#{state.name} subscriber started")
+    {:ok, state}
+  end
+
+  def handle_info({:signal, signal}, state) do
+    IO.puts("#{state.name} received signal: #{signal.type}")
+    IO.puts("  Data: #{inspect(signal.data)}")
+    {:noreply, state}
+  end
+end
+
+# Start our subscriber
+{:ok, _sub_pid} = SimpleSubscriber.start_link(:user_subscriber)
+```
+
+Now let's subscribe to user-related events:
+
+```elixir
+# Subscribe to all user events using wildcard pattern
+{:ok, subscription_id} = Jido.Signal.Bus.subscribe(
+  :demo_bus,
+  "user.*",
+  dispatch: {:pid, target: :user_subscriber}
+)
+
+IO.puts("Subscribed with ID: #{subscription_id}")
+```
+
+## Section 5: Publishing Signals
+
+Let's publish some signals and see our subscriber in action:
+
+```elixir
+# Publish a basic signal
+{:ok, signal1} = Jido.Signal.new(%{
+  type: "user.created",
+  source: "/registration",
+  data: %{user_id: "u_001", email: "alice@example.com"}
+})
+
+Jido.Signal.Bus.publish(:demo_bus, [signal1])
+
+# Wait a moment to see the output
+Process.sleep(100)
+```
+
+```elixir
+# Publish using our custom signal type
+{:ok, signal2} = UserCreated.new(%{
+  user_id: "u_002",
+  email: "bob@example.com",
+  name: "Bob Johnson"
+})
+
+Jido.Signal.Bus.publish(:demo_bus, [signal2])
+
+Process.sleep(100)
+```
+
+```elixir
+# Publish a signal that won't match our subscription
+{:ok, signal3} = Jido.Signal.new(%{
+  type: "order.created",
+  source: "/ecommerce",
+  data: %{order_id: "ord_001", amount: 99.99}
+})
+
+Jido.Signal.Bus.publish(:demo_bus, [signal3])
+
+Process.sleep(100)
+IO.puts("Notice: order.created signal was published but user_subscriber didn't receive it!")
+```
+
+## Section 6: Multiple Subscribers with Different Patterns
+
+Let's create more subscribers with different subscription patterns:
+
+```elixir
+# Start additional subscribers
+{:ok, _} = SimpleSubscriber.start_link(:order_subscriber)
+{:ok, _} = SimpleSubscriber.start_link(:all_events_subscriber)
+
+# Subscribe to order events
+{:ok, _} = Jido.Signal.Bus.subscribe(
+  :demo_bus,
+  "order.*",
+  dispatch: {:pid, target: :order_subscriber}
+)
+
+# Subscribe to all events using multi-level wildcard
+{:ok, _} = Jido.Signal.Bus.subscribe(
+  :demo_bus,
+  "**",
+  dispatch: {:pid, target: :all_events_subscriber}
+)
+
+IO.puts("Additional subscribers created!")
+```
+
+Now let's publish various signals to see the routing in action:
+
+```elixir
+signals = [
+  {:ok, user_signal} = Jido.Signal.new(%{
+    type: "user.updated",
+    source: "/profile",
+    data: %{user_id: "u_001", field: "email"}
+  }),
+  
+  {:ok, order_signal} = Jido.Signal.new(%{
+    type: "order.shipped",
+    source: "/fulfillment",
+    data: %{order_id: "ord_001", tracking: "TRK123"}
+  }),
+  
+  {:ok, payment_signal} = Jido.Signal.new(%{
+    type: "payment.processed",
+    source: "/billing",
+    data: %{payment_id: "pay_001", amount: 99.99}
+  })
+]
+
+# Publish all signals
+Enum.each([user_signal, order_signal, payment_signal], fn signal ->
+  Jido.Signal.Bus.publish(:demo_bus, [signal])
+end)
+
+Process.sleep(500)
+IO.puts("All signals published!")
+```
+
+## Section 7: Signal History and Replay
+
+The Signal Bus maintains a history of all published signals. Let's explore this:
+
+```elixir
+# Get all signals from the bus
+{:ok, all_signals} = Jido.Signal.Bus.replay(:demo_bus, "**")
+
+IO.puts("Total signals in bus: #{length(all_signals)}")
+
+Enum.each(all_signals, fn signal ->
+  IO.puts("- #{signal.type} (#{signal.id})")
+end)
+```
+
+You can also replay signals matching specific patterns:
+
+```elixir
+# Get only user-related signals
+{:ok, user_signals} = Jido.Signal.Bus.replay(:demo_bus, "user.*")
+
+IO.puts("\nUser signals:")
+Enum.each(user_signals, fn signal ->
+  IO.puts("- #{signal.type}: #{inspect(signal.data)}")
+end)
+```
+
+## Section 8: Dispatch to Multiple Destinations
+
+Signals can be dispatched to multiple destinations simultaneously. Let's see this in action:
+
+```elixir
+# Create a signal with multiple dispatch configurations
+{:ok, multi_dispatch_signal} = Jido.Signal.new(%{
+  type: "user.premium.upgraded",
+  source: "/billing",
+  data: %{user_id: "u_003", plan: "premium"},
+  jido_dispatch: [
+    {:pid, target: :user_subscriber},
+    {:console, format: :json},
+    {:logger, level: :info}
+  ]
+})
+
+# Publish the signal
+Jido.Signal.Bus.publish(:demo_bus, [multi_dispatch_signal])
+
+Process.sleep(200)
+IO.puts("Multi-dispatch signal sent!")
+```
+
+## Section 9: Working with Signal Relationships
+
+Signals can be related to each other, creating cause-and-effect chains:
+
+```elixir
+# Create a parent signal
+{:ok, parent_signal} = Jido.Signal.new(%{
+  type: "user.registration.started",
+  source: "/auth",
+  data: %{user_id: "u_004", email: "charlie@example.com"}
+})
+
+# Create a child signal that was caused by the parent
+{:ok, child_signal} = Jido.Signal.new(%{
+  type: "user.verification.email.sent",
+  source: "/notifications",
+  data: %{user_id: "u_004", email: "charlie@example.com"},
+  jido_cause: parent_signal.id  # Link to parent signal
+})
+
+# Publish both signals
+Jido.Signal.Bus.publish(:demo_bus, [parent_signal, child_signal])
+
+Process.sleep(100)
+
+IO.puts("Parent signal ID: #{parent_signal.id}")
+IO.puts("Child signal ID: #{child_signal.id}")
+IO.puts("Child signal cause: #{child_signal.jido_cause}")
+```
+
+## Section 10: Advanced Routing with Custom Functions
+
+The router supports custom matching functions for complex routing logic:
+
+```elixir
+# Let's create a more sophisticated subscriber
+defmodule AdvancedSubscriber do
+  use GenServer
+
+  def start_link(name) do
+    GenServer.start_link(__MODULE__, %{name: name}, name: name)
+  end
+
+  def init(state) do
+    {:ok, state}
+  end
+
+  def handle_info({:signal, signal}, state) do
+    IO.puts("#{state.name} - Advanced routing matched: #{signal.type}")
+    {:noreply, state}
+  end
+end
+
+{:ok, _} = AdvancedSubscriber.start_link(:advanced_subscriber)
+
+# Subscribe with a custom matching function
+{:ok, _} = Jido.Signal.Bus.subscribe(
+  :demo_bus,
+  fn signal ->
+    # Match signals that contain "premium" in their data
+    signal.data
+    |> Enum.any?(fn {_k, v} -> 
+      is_binary(v) and String.contains?(v, "premium")
+    end)
+  end,
+  dispatch: {:pid, target: :advanced_subscriber}
+)
+
+# Test the custom routing
+{:ok, premium_signal} = Jido.Signal.new(%{
+  type: "subscription.created",
+  source: "/billing",
+  data: %{plan: "premium", user_id: "u_005"}
+})
+
+{:ok, basic_signal} = Jido.Signal.new(%{
+  type: "subscription.created",
+  source: "/billing",
+  data: %{plan: "basic", user_id: "u_006"}
+})
+
+Jido.Signal.Bus.publish(:demo_bus, [premium_signal, basic_signal])
+Process.sleep(200)
+```
+
+## Section 11: Bus Statistics and Monitoring
+
+Let's check some statistics about our Signal Bus:
+
+```elixir
+# Get bus information
+info = Jido.Signal.Bus.info(:demo_bus)
+
+IO.puts("Bus Statistics:")
+IO.puts("- Total signals published: #{info.total_signals}")
+IO.puts("- Active subscriptions: #{length(info.subscriptions)}")
+IO.puts("- Signals in history: #{length(info.signal_history)}")
+
+IO.puts("\nActive Subscriptions:")
+Enum.each(info.subscriptions, fn {sub_id, subscription} ->
+  IO.puts("- #{sub_id}: #{subscription.pattern}")
+end)
+```
+
+## Conclusion
+
+Congratulations! You've learned the basics of Jido Signal:
+
+1. **Creating Signals** - Both basic and custom typed signals
+2. **Starting a Signal Bus** - The central hub for message routing
+3. **Subscribing to Events** - Using patterns and wildcards
+4. **Publishing Signals** - Sending messages through the bus
+5. **Pattern Matching** - Routing signals to the right subscribers
+6. **Multiple Dispatch** - Sending to multiple destinations
+7. **Signal History** - Replaying past events
+8. **Causality Tracking** - Linking related signals
+9. **Advanced Routing** - Custom matching functions
+10. **Monitoring** - Observing bus statistics
+
+## Next Steps
+
+Now that you understand the basics, you can explore:
+
+- **Persistent Subscriptions** - For reliable delivery with acknowledgments
+- **Middleware** - Adding cross-cutting concerns like logging and metrics
+- **Snapshots** - Creating point-in-time views of your signal log
+- **Journal System** - Advanced causality tracking and analysis
+- **HTTP Webhooks** - Dispatching signals to external services
+- **Integration Patterns** - Using Jido Signal in real applications
+
+Check out the [full documentation](https://hexdocs.pm/jido_signal) for more advanced features and patterns!
+
+## Cleanup
+
+```elixir
+# Stop the bus and clean up
+Jido.Signal.Bus.stop(:demo_bus)
+IO.puts("Demo complete - Signal Bus stopped")
+```

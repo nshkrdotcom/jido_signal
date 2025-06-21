@@ -3,8 +3,8 @@ defmodule Jido.Signal.Serialization.ConfigTest do
 
   alias Jido.Signal.Serialization.{
     Config,
-    JsonSerializer,
     ErlangTermSerializer,
+    JsonSerializer,
     ModuleNameTypeProvider
   }
 

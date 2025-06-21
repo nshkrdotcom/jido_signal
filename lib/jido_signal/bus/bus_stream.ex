@@ -9,9 +9,9 @@ defmodule Jido.Signal.Bus.Stream do
   """
 
   use ExDbug, enabled: false
+  alias Jido.Signal
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Router
-  alias Jido.Signal
   require Logger
 
   @doc """

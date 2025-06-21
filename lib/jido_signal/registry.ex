@@ -33,6 +33,7 @@ defmodule Jido.Signal.Registry do
   ## Examples
       iex> registry = Jido.Signal.Registry.new()
   """
+  @spec new() :: t()
   def new do
     %__MODULE__{}
   end

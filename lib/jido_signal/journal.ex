@@ -263,8 +263,7 @@ defmodule Jido.Signal.Journal do
         :forward -> get_effects(journal, current.id)
         :backward -> [get_cause(journal, current.id)]
       end
-      |> Enum.reject(&is_nil/1)
-      |> Enum.reject(&MapSet.member?(visited, &1.id))
+      |> Enum.reject(fn signal -> is_nil(signal) or MapSet.member?(visited, signal.id) end)
 
     case next_signals do
       [] ->

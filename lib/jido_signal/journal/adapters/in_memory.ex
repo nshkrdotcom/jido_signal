@@ -84,7 +84,20 @@ defmodule Jido.Signal.Journal.Adapters.InMemory do
 
   @doc """
   Gets all signals in the journal.
+
+  ## Returns
+
+  A list of all signals stored in the journal
+
+  ## Examples
+
+      iex> Jido.Signal.Journal.Adapters.InMemory.put_signal(signal1)
+      iex> Jido.Signal.Journal.Adapters.InMemory.put_signal(signal2)
+      iex> signals = Jido.Signal.Journal.Adapters.InMemory.get_all_signals()
+      iex> length(signals)
+      2
   """
+  @spec get_all_signals() :: [Jido.Signal.t()]
   def get_all_signals do
     Agent.get(__MODULE__, fn state ->
       state.signals

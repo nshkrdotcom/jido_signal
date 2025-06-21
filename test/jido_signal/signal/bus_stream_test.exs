@@ -1,9 +1,9 @@
 defmodule Jido.Signal.Bus.StreamTest do
   use ExUnit.Case, async: true
-  alias Jido.Signal.Bus.Stream
-  alias Jido.Signal.Bus.State, as: BusState
-  alias Jido.Signal.Router
   alias Jido.Signal
+  alias Jido.Signal.Bus.State, as: BusState
+  alias Jido.Signal.Bus.Stream
+  alias Jido.Signal.Router
 
   @moduletag :capture_log
 

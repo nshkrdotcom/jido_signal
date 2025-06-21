@@ -1,7 +1,7 @@
 defmodule JidoTest.Signal.Bus.SubscriberTest do
   use ExUnit.Case, async: true
-  alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.Bus.State, as: BusState
+  alias Jido.Signal.Bus.Subscriber
 
   describe "subscribe/4" do
     setup do
