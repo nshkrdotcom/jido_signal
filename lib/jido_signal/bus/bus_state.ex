@@ -34,8 +34,8 @@ defmodule Jido.Signal.Bus.State do
     - signals: List of recorded signals to merge
 
   ## Returns
-    - {:ok, new_state, recorded_signals} with signals merged into log
-    - {:error, reason} if there was an error processing the signals
+    - `{:ok, new_state, recorded_signals}` with signals merged into log
+    - `{:error, reason}` if there was an error processing the signals
   """
   @spec append_signals(t(), list(Jido.Signal.t() | {:ok, Jido.Signal.t()} | map())) ::
           {:ok, t(), list(Signal.t())} | {:error, term()}

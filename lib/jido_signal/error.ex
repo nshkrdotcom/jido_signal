@@ -51,34 +51,18 @@ defmodule Jido.Signal.Error do
   @typedoc """
   Defines the possible error types in the Jido system.
 
-  - `:invalid_action`: Used when a action is improperly defined or used.
-  - `:invalid_sensor`: Used when a sensor is improperly defined or used.
-  - `:bad_request`: Indicates an invalid request from the client.
   - `:validation_error`: Used when input validation fails.
-  - `:config_error`: Indicates a configuration issue.
   - `:execution_error`: Used when an error occurs during action execution.
-  - `:action_error`: General action-related errors.
-  - `:internal_server_error`: Indicates an unexpected internal error.
   - `:timeout`: Used when an action exceeds its time limit.
-  - `:invalid_async_ref`: Indicates an invalid asynchronous action reference.
-  - `:compensation_error`: Indicates an error occurred during compensation.
   - `:planning_error`: Used when an error occurs during action planning.
   - `:routing_error`: Used when an error occurs during action routing.
   - `:dispatch_error`: Used when an error occurs during signal dispatching.
   """
   @type error_type ::
-          :invalid_action
-          | :invalid_sensor
-          | :bad_request
-          | :validation_error
-          | :config_error
+          :validation_error
           | :execution_error
           | :planning_error
-          | :action_error
-          | :internal_server_error
           | :timeout
-          | :invalid_async_ref
-          | :compensation_error
           | :routing_error
           | :dispatch_error
 
@@ -141,56 +125,6 @@ defmodule Jido.Signal.Error do
   end
 
   @doc """
-  Creates a new invalid action error.
-
-  Use this when a action is improperly defined or used within the Jido system.
-
-  ## Parameters
-  - `message`: A string describing the error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.invalid_action("Action 'MyAction' is missing required callback")
-      %Jido.Signal.Error{
-        type: :invalid_action,
-        message: "Action 'MyAction' is missing required callback",
-        details: nil,
-        stacktrace: [...]
-      }
-  """
-  @spec invalid_action(String.t(), map() | nil, list() | nil) :: t()
-  def invalid_action(message, details \\ nil, stacktrace \\ nil) do
-    new(:invalid_action, message, details, stacktrace)
-  end
-
-  @doc """
-  Creates a new invalid sensor error.
-
-  Use this when a sensor is improperly defined or used within the Jido system.
-
-  ## Parameters
-  - `message`: A string describing the error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.invalid_sensor("Sensor 'MySensor' is missing required callback")
-      %Jido.Signal.Error{
-        type: :invalid_sensor,
-        message: "Sensor 'MySensor' is missing required callback",
-        details: nil,
-        stacktrace: [...]
-      }
-  """
-  @spec invalid_sensor(String.t(), map() | nil, list() | nil) :: t()
-  def invalid_sensor(message, details \\ nil, stacktrace \\ nil) do
-    new(:invalid_sensor, message, details, stacktrace)
-  end
-
-  @doc """
   Creates a new bad request error.
 
   Use this when the client sends an invalid or malformed request.
@@ -241,31 +175,6 @@ defmodule Jido.Signal.Error do
   end
 
   @doc """
-  Creates a new config error.
-
-  Use this when there's an issue with the system or action configuration.
-
-  ## Parameters
-  - `message`: A string describing the configuration error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.config_error("Invalid database connection string")
-      %Jido.Signal.Error{
-        type: :config_error,
-        message: "Invalid database connection string",
-        details: nil,
-        stacktrace: [...]
-      }
-  """
-  @spec config_error(String.t(), map() | nil, list() | nil) :: t()
-  def config_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:config_error, message, details, stacktrace)
-  end
-
-  @doc """
   Creates a new execution error.
 
   Use this when an error occurs during the execution of an action.
@@ -291,81 +200,6 @@ defmodule Jido.Signal.Error do
   end
 
   @doc """
-  Creates a new planning error.
-
-  Use this when an error occurs during action planning.
-
-  ## Parameters
-  - `message`: A string describing the planning error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.planning_error("Failed to plan action", %{step: "goal_analysis"})
-      %Jido.Signal.Error{
-        type: :planning_error,
-        message: "Failed to plan action",
-        details: %{step: "goal_analysis"},
-        stacktrace: [...]
-      }
-  """
-  @spec planning_error(String.t(), map() | nil, list() | nil) :: t()
-  def planning_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:planning_error, message, details, stacktrace)
-  end
-
-  @doc """
-  Creates a new action error.
-
-  Use this for general action-related errors that don't fit into other categories.
-
-  ## Parameters
-  - `message`: A string describing the action error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.action_error("Exec 'ProcessOrder' failed", %{order_id: 12345})
-      %Jido.Signal.Error{
-        type: :action_error,
-        message: "Exec 'ProcessOrder' failed",
-        details: %{order_id: 12345},
-        stacktrace: [...]
-      }
-  """
-  @spec action_error(String.t(), map() | nil, list() | nil) :: t()
-  def action_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:action_error, message, details, stacktrace)
-  end
-
-  @doc """
-  Creates a new internal server error.
-
-  Use this for unexpected errors that occur within the system.
-
-  ## Parameters
-  - `message`: A string describing the internal server error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.internal_server_error("Unexpected error in data processing")
-      %Jido.Signal.Error{
-        type: :internal_server_error,
-        message: "Unexpected error in data processing",
-        details: nil,
-        stacktrace: [...]
-      }
-  """
-  @spec internal_server_error(String.t(), map() | nil, list() | nil) :: t()
-  def internal_server_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:internal_server_error, message, details, stacktrace)
-  end
-
-  @doc """
   Creates a new timeout error.
 
   Use this when an action exceeds its allocated time limit.
@@ -388,31 +222,6 @@ defmodule Jido.Signal.Error do
   @spec timeout(String.t(), map() | nil, list() | nil) :: t()
   def timeout(message, details \\ nil, stacktrace \\ nil) do
     new(:timeout, message, details, stacktrace)
-  end
-
-  @doc """
-  Creates a new invalid async ref error.
-
-  Use this when an invalid reference to an asynchronous action is encountered.
-
-  ## Parameters
-  - `message`: A string describing the invalid async ref error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.invalid_async_ref("Invalid or expired async action reference")
-      %Jido.Signal.Error{
-        type: :invalid_async_ref,
-        message: "Invalid or expired async action reference",
-        details: nil,
-        stacktrace: [...]
-      }
-  """
-  @spec invalid_async_ref(String.t(), map() | nil, list() | nil) :: t()
-  def invalid_async_ref(message, details \\ nil, stacktrace \\ nil) do
-    new(:invalid_async_ref, message, details, stacktrace)
   end
 
   @doc """
@@ -463,56 +272,6 @@ defmodule Jido.Signal.Error do
   @spec dispatch_error(String.t(), map() | nil, list() | nil) :: t()
   def dispatch_error(message, details \\ nil, stacktrace \\ nil) do
     new(:dispatch_error, message, details, stacktrace)
-  end
-
-  @doc """
-  Creates a new compensation error with details about the original error and compensation attempt.
-
-  ## Parameters
-
-  - `original_error`: The error that triggered compensation
-  - `details`: Optional map containing:
-    - `:compensated` - Boolean indicating if compensation succeeded
-    - `:compensation_result` - Result from successful compensation
-    - `:compensation_error` - Error from failed compensation
-  - `stacktrace`: Optional stacktrace for debugging
-
-  ## Examples
-
-      iex> original_error = Jido.Signal.Error.execution_error("Failed to process payment")
-      iex> Jido.Signal.Error.compensation_error(original_error, %{
-      ...>   compensated: true,
-      ...>   compensation_result: %{refund_id: "ref_123"}
-      ...> })
-      %Jido.Signal.Error{
-        type: :compensation_error,
-        message: "Compensation completed for: Failed to process payment",
-        details: %{
-          compensated: true,
-          compensation_result: %{refund_id: "ref_123"},
-          original_error: %Jido.Signal.Error{...}
-        }
-      }
-
-      iex> # For failed compensation:
-      iex> Jido.Signal.Error.compensation_error(original_error, %{
-      ...>   compensated: false,
-      ...>   compensation_error: "Refund failed"
-      ...> })
-  """
-  @spec compensation_error(t(), map(), list() | nil) :: t()
-  def compensation_error(%__MODULE__{} = original_error, details, stacktrace \\ nil) do
-    formatted_details = Map.put(details, :original_error, original_error)
-
-    # Strip the error type prefix from the message if it exists
-    original_message = String.replace(original_error.message, ~r/\[.*?\]\s+/, "")
-
-    message =
-      if details.compensated,
-        do: "Compensation completed for: #{original_message}",
-        else: "Compensation failed for: #{original_message}"
-
-    new(:compensation_error, message, formatted_details, stacktrace)
   end
 
   @doc """

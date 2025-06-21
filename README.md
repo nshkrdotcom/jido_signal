@@ -16,7 +16,7 @@ _`Jido.Signal` is part of the [Jido](https://github.com/agentjido/jido) project.
 
 Whether you're building microservices that need reliable event communication, implementing complex agent-based systems, or creating observable distributed applications, Jido.Signal provides the foundation for robust, traceable, and scalable event-driven architecture.
 
-## 🤔 Why Do I Need Signals?
+## Why Do I Need Signals?
 
 **Agent Communication in Elixir's Process-Driven World**
 
@@ -47,7 +47,7 @@ Bus.publish(:app_bus, [signal])  # Structured, routed, traceable, reliable
 
 Jido.Signal transforms Elixir's message passing into a sophisticated communication system that scales from simple GenServer interactions to complex multi-agent orchestration across distributed systems.
 
-## 🚀 Key Features
+## Key Features
 
 ### **Standardized Signal Structure**
 - CloudEvents v1.0.2 compliant message format
@@ -79,7 +79,7 @@ Jido.Signal transforms Elixir's message passing into a sophisticated communicati
 - Conversation grouping and temporal ordering
 - Comprehensive system traceability for debugging and auditing
 
-## 📦 Installation
+## Installation
 
 Add `jido_signal` to your list of dependencies in `mix.exs`:
 
@@ -97,7 +97,7 @@ Then run:
 mix deps.get
 ```
 
-## 🏁 Quick Start
+## Quick Start
 
 ### 1. Start a Signal Bus
 
@@ -150,7 +150,7 @@ Bus.publish(:my_app_bus, [signal])
 # Output: "Received: user.created"
 ```
 
-## 🔧 Core Concepts
+## Core Concepts
 
 ### The Signal
 
@@ -263,7 +263,7 @@ dispatch_configs = [
 {:ok, task} = Dispatch.dispatch_async(signal, dispatch_configs)
 ```
 
-## 🎯 Advanced Features
+## Advanced Features
 
 ### Persistent Subscriptions
 
@@ -374,7 +374,7 @@ Create point-in-time views of your signal log:
 Enum.each(signals, &analyze_order_signal/1)
 ```
 
-## 🎨 Use Cases
+## Use Cases
 
 ### Microservices Communication
 ```elixir
@@ -419,14 +419,14 @@ workflow_signals = [
 ]
 ```
 
-## 📚 Documentation
+## Documentation
 
 - **[Getting Started Guide](https://hexdocs.pm/jido_signal/getting-started.html)** - Step-by-step tutorial
 - **[Core Concepts](https://hexdocs.pm/jido_signal/core-concepts.html)** - Deep dive into architecture  
 - **[API Reference](https://hexdocs.pm/jido_signal)** - Complete function documentation
 - **[Guides](https://hexdocs.pm/jido_signal/guides.html)** - Advanced usage patterns
 
-## 🛠️ Development
+## Development
 
 ### Prerequisites
 
@@ -459,7 +459,7 @@ mix quality  # Runs formatter, dialyzer, and credo
 mix docs
 ```
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
 
@@ -468,16 +468,16 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - Submitting pull requests
 - Code style guidelines
 
-## 📄 License
+## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE.md](LICENSE.md) file for details.
 
-## 🌟 Related Projects
+## Related Projects
 
 - **[Jido](https://github.com/agentjido/jido)** - The main Jido agent framework
 - **[Jido Workbench](https://github.com/agentjido/jido_workbench)** - Development tools and utilities
 
-## 🔗 Links
+## Links
 
 - [Hex Package](https://hex.pm/packages/jido_signal)
 - [Documentation](https://hexdocs.pm/jido_signal)

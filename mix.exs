@@ -62,6 +62,8 @@ defmodule Jido.Signal.MixProject do
       main: "readme",
       extras: [
         "README.md",
+        "CONTRIBUTING.md",
+        "LICENSE.md",
         "guides/getting-started.md",
         "guides/introduction/what-is-jido-signal.md",
         "guides/introduction/core-components.md",
@@ -128,7 +130,7 @@ defmodule Jido.Signal.MixProject do
       test: "test --exclude flaky",
 
       # Helper to run docs
-      # docs: "docs -f html --open",
+      docs: "docs -f html --open",
 
       # Run to check the quality of your code
       q: ["quality"],

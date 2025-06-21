@@ -50,8 +50,8 @@ defmodule Jido.Signal.Bus.Middleware do
   - state: Current middleware state
 
   ## Returns
-  - {:cont, signals, new_state} - Continue with potentially modified signals
-  - {:halt, reason, state} - Stop processing and return error
+  - `{:cont, signals, new_state}` - Continue with potentially modified signals
+  - `{:halt, reason, state}` - Stop processing and return error
   """
   @callback before_publish(
               signals :: [Signal.t()],
@@ -72,7 +72,7 @@ defmodule Jido.Signal.Bus.Middleware do
   - state: Current middleware state
 
   ## Returns
-  - {:cont, signals, new_state} - Continue processing
+  - `{:cont, signals, new_state}` - Continue processing
   """
   @callback after_publish(
               signals :: [Signal.t()],
@@ -93,9 +93,9 @@ defmodule Jido.Signal.Bus.Middleware do
   - state: Current middleware state
 
   ## Returns
-  - {:cont, signal, new_state} - Continue with potentially modified signal
-  - {:skip, state} - Skip this subscriber
-  - {:halt, reason, state} - Stop all dispatch for this signal
+  - `{:cont, signal, new_state}` - Continue with potentially modified signal
+  - `{:skip, state}` - Skip this subscriber
+  - `{:halt, reason, state}` - Stop all dispatch for this signal
   """
   @callback before_dispatch(
               signal :: Signal.t(),
@@ -120,7 +120,7 @@ defmodule Jido.Signal.Bus.Middleware do
   - state: Current middleware state
 
   ## Returns
-  - {:cont, new_state} - Continue processing
+  - `{:cont, new_state}` - Continue processing
   """
   @callback after_dispatch(
               signal :: Signal.t(),
