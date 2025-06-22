@@ -221,33 +221,33 @@ defmodule Jido.Signal.Router.Validator do
     else
       segments = String.split(path, ".")
 
-        # Check for consecutive ** segments first
-        consecutive_wildcards? =
-          segments
-          |> Enum.chunk_every(2, 1, :discard)
-          |> Enum.any?(fn [a, b] -> a == "**" and b == "**" end)
+      # Check for consecutive ** segments first
+      consecutive_wildcards? =
+        segments
+        |> Enum.chunk_every(2, 1, :discard)
+        |> Enum.any?(fn [a, b] -> a == "**" and b == "**" end)
 
-        if consecutive_wildcards? do
-          {:error, Error.routing_error("Path cannot contain multiple wildcards")}
-        else
-          # Then validate each segment
-          case Enum.find(segments, &(not valid_segment?(&1))) do
-            nil ->
-              {:ok, path}
+      if consecutive_wildcards? do
+        {:error, Error.routing_error("Path cannot contain multiple wildcards")}
+      else
+        # Then validate each segment
+        case Enum.find(segments, &(not valid_segment?(&1))) do
+          nil ->
+            {:ok, path}
 
-            invalid ->
-              cond do
-                String.contains?(invalid, "**") ->
-                  {:error, Error.routing_error("Path cannot contain '**' sequence")}
+          invalid ->
+            cond do
+              String.contains?(invalid, "**") ->
+                {:error, Error.routing_error("Path cannot contain '**' sequence")}
 
-                String.contains?(invalid, "*") ->
-                  {:error, Error.routing_error("Path cannot contain '*' within a segment")}
+              String.contains?(invalid, "*") ->
+                {:error, Error.routing_error("Path cannot contain '*' within a segment")}
 
-                true ->
-                  {:error, Error.routing_error("Path contains invalid characters")}
-              end
-          end
+              true ->
+                {:error, Error.routing_error("Path contains invalid characters")}
+            end
         end
+      end
     end
   end
 

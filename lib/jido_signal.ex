@@ -334,7 +334,13 @@ defmodule Jido.Signal do
                     {:ok, Map.new(validated_data)}
 
                   {:error, %NimbleOptions.ValidationError{} = error} ->
-                    reason = Jido.Signal.Error.format_nimble_validation_error(error, "Signal", __MODULE__)
+                    reason =
+                      Jido.Signal.Error.format_nimble_validation_error(
+                        error,
+                        "Signal",
+                        __MODULE__
+                      )
+
                     {:error, reason}
                 end
             end
