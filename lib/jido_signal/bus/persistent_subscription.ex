@@ -361,7 +361,7 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
       case DateTime.from_iso8601(signal.time) do
         {:ok, timestamp, _offset} ->
           if DateTime.to_unix(timestamp) > state.checkpoint do
-            if state.bus_subscription.dispatch do
+            if state.bus_subscription.dispatch != nil do
               dispatch_result = Dispatch.dispatch(signal, state.bus_subscription.dispatch)
 
               if dispatch_result != :ok do

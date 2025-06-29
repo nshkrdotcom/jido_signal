@@ -25,9 +25,10 @@ defmodule Jido.Signal.Bus.Subscriber do
     field(:created_at, DateTime.t(), default: DateTime.utc_now())
   end
 
+  @dialyzer {:nowarn_function, subscribe: 4}
   @spec subscribe(BusState.t(), String.t(), String.t(), keyword()) ::
           {:ok, BusState.t()} | {:error, Error.t()}
-  def subscribe(%BusState{} = state, subscription_id, path, opts) do
+  def subscribe(%BusState{} = state, subscription_id, path, opts) when is_binary(path) do
     dbug("subscribe", state: state, subscription_id: subscription_id, path: path, opts: opts)
     persistent? = Keyword.get(opts, :persistent?, false)
     dispatch = Keyword.get(opts, :dispatch)
@@ -130,10 +131,6 @@ defmodule Jido.Signal.Bus.Subscriber do
 
         {:error,
          Error.validation_error("Subscription does not exist", %{subscription_id: subscription_id})}
-
-      {:error, reason} ->
-        dbug("failed to remove subscription", reason: reason)
-        {:error, Error.execution_error("Failed to remove subscription", reason)}
     end
   end
 

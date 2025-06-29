@@ -75,7 +75,7 @@ defmodule Jido.Signal.Bus.Snapshot do
     """
     field(:id, String.t(), enforce: true)
     field(:path, String.t(), enforce: true)
-    field(:signals, %{String.t() => Jido.Signal.Bus.Signal.t()}, enforce: true)
+    field(:signals, %{String.t() => Jido.Signal.t()}, enforce: true)
     field(:created_at, DateTime.t(), enforce: true)
   end
 

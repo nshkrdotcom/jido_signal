@@ -171,7 +171,6 @@ defmodule Jido.Signal.Bus.State do
     if route_exists do
       case Router.remove(state.router, path) do
         {:ok, new_router} -> {:ok, %{state | router: new_router}}
-        _ -> {:error, :route_not_found}
       end
     else
       {:error, :route_not_found}
@@ -186,7 +185,6 @@ defmodule Jido.Signal.Bus.State do
     if route_exists do
       case Router.remove(state.router, path) do
         {:ok, new_router} -> {:ok, %{state | router: new_router}}
-        _ -> {:error, :route_not_found}
       end
     else
       {:error, :route_not_found}
@@ -281,7 +279,6 @@ defmodule Jido.Signal.Bus.State do
 
       case Router.remove(new_state.router, subscription.path) do
         {:ok, new_router} -> {:ok, %{new_state | router: new_router}}
-        _ -> {:error, :route_not_found}
       end
     else
       {:error, :subscription_not_found}

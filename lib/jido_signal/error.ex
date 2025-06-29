@@ -64,6 +64,7 @@ defmodule Jido.Signal.Error do
           | :planning_error
           | :timeout
           | :routing_error
+          | :bad_request
           | :dispatch_error
 
   use TypedStruct
