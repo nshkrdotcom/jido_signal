@@ -507,7 +507,11 @@ defmodule Jido.Signal.Router do
 
   def route(%Router{trie: trie}, %Signal{} = signal) do
     results = Engine.route_signal(trie, signal)
-    {:ok, results}
+
+    case results do
+      [] -> {:error, Error.routing_error("No matching handlers found for signal")}
+      _ -> {:ok, results}
+    end
   end
 
   @doc """
