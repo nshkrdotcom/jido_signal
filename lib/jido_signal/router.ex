@@ -507,12 +507,7 @@ defmodule Jido.Signal.Router do
 
   def route(%Router{trie: trie}, %Signal{} = signal) do
     results = Engine.route_signal(trie, signal)
-
-    if Enum.empty?(results) do
-      {:error, Error.routing_error("No matching handlers found for signal")}
-    else
-      {:ok, results}
-    end
+    {:ok, results}
   end
 
   @doc """
@@ -549,8 +544,7 @@ defmodule Jido.Signal.Router do
   @spec matches?(String.t() | nil | any(), String.t() | nil | any()) :: boolean()
   def matches?(nil, _pattern), do: false
   def matches?(_type, nil), do: false
-  def matches?(type, _pattern) when not is_binary(type), do: false
-  def matches?(_type, pattern) when not is_binary(pattern), do: false
+  def matches?(type, pattern) when not is_binary(type) or not is_binary(pattern), do: false
 
   def matches?(type, pattern) when is_binary(type) and is_binary(pattern) do
     # For single wildcards, verify segment count matches
@@ -698,7 +692,6 @@ defmodule Jido.Signal.Router do
   def has_route?(%Router{} = router, route_path) when is_binary(route_path) do
     case list(router) do
       {:ok, routes} -> Enum.any?(routes, fn route -> route.path == route_path end)
-      _ -> false
     end
   end
 

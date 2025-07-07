@@ -51,6 +51,7 @@ defmodule Jido.Signal.Error do
   @typedoc """
   Defines the possible error types in the Jido system.
 
+  - `:bad_request`: Used when the client sends an invalid or malformed request.
   - `:validation_error`: Used when input validation fails.
   - `:execution_error`: Used when an error occurs during action execution.
   - `:timeout`: Used when an action exceeds its time limit.
@@ -59,7 +60,8 @@ defmodule Jido.Signal.Error do
   - `:dispatch_error`: Used when an error occurs during signal dispatching.
   """
   @type error_type ::
-          :validation_error
+          :bad_request
+          | :validation_error
           | :execution_error
           | :planning_error
           | :timeout
@@ -80,7 +82,7 @@ defmodule Jido.Signal.Error do
   typedstruct do
     field(:type, error_type(), enforce: true)
     field(:message, String.t(), enforce: true)
-    field(:details, map(), default: %{})
+    field(:details, map() | nil, default: %{})
     field(:stacktrace, list(), default: [])
   end
 
@@ -119,7 +121,7 @@ defmodule Jido.Signal.Error do
     %__MODULE__{
       type: type,
       message: message,
-      details: details,
+      details: details || %{},
       stacktrace: stacktrace || capture_stacktrace()
     }
   end
