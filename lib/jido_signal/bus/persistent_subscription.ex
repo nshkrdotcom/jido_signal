@@ -157,6 +157,12 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
   end
 
   @impl GenServer
+  def handle_call({:ack, _invalid_arg}, _from, state) do
+    dbug("Invalid ack argument", arg: _invalid_arg)
+    {:reply, {:error, :invalid_ack_argument}, state}
+  end
+
+  @impl GenServer
   def handle_call({:signal, {signal_log_id, signal}}, _from, state) do
     dbug("Received signal via call", signal_log_id: signal_log_id)
 
@@ -173,10 +179,12 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
       # Dispatch according to subscription dispatch configuration
       if state.bus_subscription.dispatch do
         # Perform the actual dispatch
-        dispatch_result = Dispatch.dispatch(signal, state.bus_subscription.dispatch)
+        case Dispatch.dispatch(signal, state.bus_subscription.dispatch) do
+          :ok ->
+            :ok
 
-        if dispatch_result != :ok do
-          dbug("Dispatch failed", result: dispatch_result)
+          {:error, _reason} ->
+            dbug("Dispatch failed", reason: _reason)
         end
       end
 
@@ -283,10 +291,12 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
       # Dispatch according to subscription dispatch configuration
       if state.bus_subscription.dispatch do
         # Perform the actual dispatch
-        dispatch_result = Dispatch.dispatch(signal, state.bus_subscription.dispatch)
+        case Dispatch.dispatch(signal, state.bus_subscription.dispatch) do
+          :ok ->
+            :ok
 
-        if dispatch_result != :ok do
-          dbug("Dispatch failed", result: dispatch_result)
+          {:error, _reason} ->
+            dbug("Dispatch failed", reason: _reason)
         end
       end
 
@@ -361,13 +371,17 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
       case DateTime.from_iso8601(signal.time) do
         {:ok, timestamp, _offset} ->
           if DateTime.to_unix(timestamp) > state.checkpoint do
-            if state.bus_subscription.dispatch do
-              dispatch_result = Dispatch.dispatch(signal, state.bus_subscription.dispatch)
+            dispatch_config = state.bus_subscription.dispatch
 
-              if dispatch_result != :ok do
-                Logger.debug(
-                  "Dispatch failed during replay, signal: #{inspect(signal)}, dispatch_result: #{inspect(dispatch_result)}"
-                )
+            if dispatch_config != nil do
+              case Dispatch.dispatch(signal, dispatch_config) do
+                :ok ->
+                  :ok
+
+                {:error, reason} ->
+                  Logger.debug(
+                    "Dispatch failed during replay, signal: #{inspect(signal)}, reason: #{inspect(reason)}"
+                  )
               end
             end
           end
@@ -429,10 +443,12 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
 
       # Dispatch the signal using the configured dispatch mechanism
       if state.bus_subscription.dispatch do
-        dispatch_result = Dispatch.dispatch(signal, state.bus_subscription.dispatch)
+        case Dispatch.dispatch(signal, state.bus_subscription.dispatch) do
+          :ok ->
+            :ok
 
-        if dispatch_result != :ok do
-          dbug("Dispatch of pending signal failed", result: dispatch_result)
+          {:error, _reason} ->
+            dbug("Dispatch of pending signal failed", reason: _reason)
         end
       end
 

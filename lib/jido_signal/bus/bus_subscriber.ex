@@ -14,6 +14,7 @@ defmodule Jido.Signal.Bus.Subscriber do
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.Error
+  alias Jido.Signal.Router
 
   typedstruct do
     field(:id, String.t(), enforce: true)
@@ -74,7 +75,14 @@ defmodule Jido.Signal.Bus.Subscriber do
             dbug("persistent subscription started", pid: pid)
             # Update subscription with persistence pid
             subscription = %{subscription | persistence_pid: pid}
-            BusState.add_subscription(state, subscription_id, subscription)
+
+            case BusState.add_subscription(state, subscription_id, subscription) do
+              {:ok, new_state} ->
+                {:ok, new_state}
+
+              {:error, reason} ->
+                {:error, Error.execution_error("Failed to add subscription", %{reason: reason})}
+            end
 
           {:error, reason} ->
             dbug("failed to start persistent subscription", reason: reason)
@@ -82,7 +90,28 @@ defmodule Jido.Signal.Bus.Subscriber do
         end
       else
         dbug("creating non-persistent subscription", subscription: subscription)
-        BusState.add_subscription(state, subscription_id, subscription)
+
+        # Since we already confirmed subscription doesn't exist, directly add it
+        new_state = %{
+          state
+          | subscriptions: Map.put(state.subscriptions, subscription_id, subscription)
+        }
+
+        # Create route for the subscription
+        route = %Router.Route{
+          path: subscription.path,
+          target: subscription.dispatch,
+          priority: 0,
+          match: nil
+        }
+
+        case BusState.add_route(new_state, route) do
+          {:ok, final_state} ->
+            {:ok, final_state}
+
+          {:error, reason} ->
+            {:error, Error.execution_error("Failed to add subscription route", %{reason: reason})}
+        end
       end
     end
   end
@@ -130,10 +159,6 @@ defmodule Jido.Signal.Bus.Subscriber do
 
         {:error,
          Error.validation_error("Subscription does not exist", %{subscription_id: subscription_id})}
-
-      {:error, reason} ->
-        dbug("failed to remove subscription", reason: reason)
-        {:error, Error.execution_error("Failed to remove subscription", reason)}
     end
   end
 

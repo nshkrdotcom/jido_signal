@@ -18,7 +18,7 @@ defmodule Jido.Signal.Bus.State do
     field(:name, atom(), enforce: true)
     field(:router, Router.Router.t(), default: Router.new!())
     field(:log, %{String.t() => Signal.t()}, default: %{})
-    field(:snapshots, %{String.t() => Signal.t()}, default: %{})
+    field(:snapshots, %{String.t() => Jido.Signal.Bus.Snapshot.SnapshotRef.t()}, default: %{})
     field(:subscriptions, %{String.t() => Jido.Signal.Bus.Subscriber.t()}, default: %{})
     field(:child_supervisor, pid())
     field(:middleware, [Jido.Signal.Bus.MiddlewarePipeline.middleware_config()], default: [])
@@ -37,8 +37,8 @@ defmodule Jido.Signal.Bus.State do
     - `{:ok, new_state, recorded_signals}` with signals merged into log
     - `{:error, reason}` if there was an error processing the signals
   """
-  @spec append_signals(t(), list(Jido.Signal.t() | {:ok, Jido.Signal.t()} | map())) ::
-          {:ok, t(), list(Signal.t())} | {:error, term()}
+  @spec append_signals(t(), [Jido.Signal.t() | {:ok, Jido.Signal.t()} | map()]) ::
+          {:ok, t(), [Signal.t()]} | {:error, term()}
   def append_signals(%__MODULE__{} = state, signals) when is_list(signals) do
     if signals == [] do
       {:ok, state, []}
@@ -159,7 +159,8 @@ defmodule Jido.Signal.Bus.State do
   - `{:ok, new_state}` if successful
   - `{:error, :route_not_found}` if the route doesn't exist
   """
-  @spec remove_route(t(), Router.Route.t() | String.t()) :: {:ok, t()} | {:error, atom()}
+  @spec remove_route(t(), Router.Route.t() | String.t()) ::
+          {:ok, t()} | {:error, :route_not_found}
   def remove_route(%__MODULE__{} = state, %Router.Route{} = route) do
     # Extract the path from the route
     path = route.path
@@ -169,10 +170,8 @@ defmodule Jido.Signal.Bus.State do
     route_exists = Enum.any?(routes, fn r -> r.path == path end)
 
     if route_exists do
-      case Router.remove(state.router, path) do
-        {:ok, new_router} -> {:ok, %{state | router: new_router}}
-        _ -> {:error, :route_not_found}
-      end
+      {:ok, new_router} = Router.remove(state.router, path)
+      {:ok, %{state | router: new_router}}
     else
       {:error, :route_not_found}
     end
@@ -184,10 +183,8 @@ defmodule Jido.Signal.Bus.State do
     route_exists = Enum.any?(routes, fn r -> r.path == path end)
 
     if route_exists do
-      case Router.remove(state.router, path) do
-        {:ok, new_router} -> {:ok, %{state | router: new_router}}
-        _ -> {:error, :route_not_found}
-      end
+      {:ok, new_router} = Router.remove(state.router, path)
+      {:ok, %{state | router: new_router}}
     else
       {:error, :route_not_found}
     end
@@ -279,10 +276,8 @@ defmodule Jido.Signal.Bus.State do
       {subscription, new_subscriptions} = Map.pop(state.subscriptions, subscription_id)
       new_state = %{state | subscriptions: new_subscriptions}
 
-      case Router.remove(new_state.router, subscription.path) do
-        {:ok, new_router} -> {:ok, %{new_state | router: new_router}}
-        _ -> {:error, :route_not_found}
-      end
+      {:ok, new_router} = Router.remove(new_state.router, subscription.path)
+      {:ok, %{new_state | router: new_router}}
     else
       {:error, :subscription_not_found}
     end

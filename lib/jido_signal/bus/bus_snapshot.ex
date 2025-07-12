@@ -75,7 +75,7 @@ defmodule Jido.Signal.Bus.Snapshot do
     """
     field(:id, String.t(), enforce: true)
     field(:path, String.t(), enforce: true)
-    field(:signals, %{String.t() => Jido.Signal.Bus.Signal.t()}, enforce: true)
+    field(:signals, %{String.t() => Jido.Signal.t()}, enforce: true)
     field(:created_at, DateTime.t(), enforce: true)
   end
 
@@ -196,7 +196,8 @@ defmodule Jido.Signal.Bus.Snapshot do
       iex> Snapshot.read(state, "non-existent-id")
       {:error, :not_found}
   """
-  @spec read(BusState.t(), String.t()) :: {:ok, SnapshotData.t()} | {:error, :not_found}
+  @spec read(BusState.t(), String.t()) ::
+          {:ok, SnapshotData.t()} | {:error, :not_found | :snapshot_read_failed}
   def read(state, snapshot_id) do
     dbug("read", snapshot_id: snapshot_id, state: state)
 
@@ -227,7 +228,8 @@ defmodule Jido.Signal.Bus.Snapshot do
       iex> Snapshot.delete(state, "non-existent-id")
       {:error, :not_found}
   """
-  @spec delete(BusState.t(), String.t()) :: {:ok, BusState.t()} | {:error, :not_found}
+  @spec delete(BusState.t(), String.t()) ::
+          {:ok, BusState.t()} | {:error, :not_found | :snapshot_deletion_failed}
   def delete(state, snapshot_id) do
     dbug("delete", snapshot_id: snapshot_id, state: state)
 
@@ -258,7 +260,7 @@ defmodule Jido.Signal.Bus.Snapshot do
       iex> Snapshot.cleanup(state)
       {:ok, %BusState{snapshots: %{}}}
   """
-  @spec cleanup(BusState.t()) :: {:ok, BusState.t()}
+  @spec cleanup(BusState.t()) :: {:ok, BusState.t()} | {:error, :snapshot_cleanup_failed}
   def cleanup(state) do
     dbug("cleanup", state: state)
 
@@ -288,7 +290,8 @@ defmodule Jido.Signal.Bus.Snapshot do
       iex> Snapshot.cleanup(state, fn ref -> DateTime.compare(ref.created_at, cutoff_time) == :lt end)
       {:ok, %BusState{}}
   """
-  @spec cleanup(BusState.t(), (SnapshotRef.t() -> boolean())) :: {:ok, BusState.t()}
+  @spec cleanup(BusState.t(), (SnapshotRef.t() -> boolean())) ::
+          {:ok, BusState.t()} | {:error, :snapshot_cleanup_failed}
   def cleanup(state, filter_fn) when is_function(filter_fn, 1) do
     dbug("cleanup with filter", state: state)
 
