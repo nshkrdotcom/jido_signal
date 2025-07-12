@@ -4,6 +4,13 @@ defmodule Jido.Signal.DispatchErrorNormalizationTest do
   alias Jido.Signal.Dispatch
   alias Jido.Signal.Error
 
+  # Named function for telemetry handler to avoid performance warnings
+  def handle_telemetry_event(event, measurements, metadata, _config) do
+    # Get the test pid from the metadata or use a default
+    test_pid = Process.get(:test_pid) || self()
+    send(test_pid, {:telemetry, event, measurements, metadata})
+  end
+
   # Test with error normalization enabled per test
 
   test "dispatch normalizes errors to Jido.Signal.Error when enabled" do
@@ -59,6 +66,9 @@ defmodule Jido.Signal.DispatchErrorNormalizationTest do
     test_pid = self()
     handler_id = :dispatch_test_handler
 
+    # Store the test pid in process dictionary for the handler to access
+    Process.put(:test_pid, test_pid)
+
     :telemetry.attach_many(
       handler_id,
       [
@@ -66,9 +76,7 @@ defmodule Jido.Signal.DispatchErrorNormalizationTest do
         [:jido, :dispatch, :stop],
         [:jido, :dispatch, :exception]
       ],
-      fn event, measurements, metadata, _config ->
-        send(test_pid, {:telemetry, event, measurements, metadata})
-      end,
+      &__MODULE__.handle_telemetry_event/4,
       nil
     )
 

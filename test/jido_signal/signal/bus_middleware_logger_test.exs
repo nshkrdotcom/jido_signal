@@ -1,5 +1,5 @@
 defmodule JidoTest.Signal.Bus.Middleware.Logger do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   alias Jido.Signal
   alias Jido.Signal.Bus.Middleware.Logger, as: LoggerMiddleware
   alias Jido.Signal.Bus.Subscriber
