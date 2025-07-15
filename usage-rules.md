@@ -1,121 +1,61 @@
 # Jido Signal Usage Rules
 
-This document provides essential guidelines for working with the Jido Signal library, an Elixir toolkit for building event-driven and agent-based systems.
+Essential guidelines for the Jido Signal library - an Elixir toolkit for event-driven and agent-based systems.
 
-## Core Architecture Principles
+## Core Principles
 
-### Signal-First Design
-- **Always use Signals for inter-process communication** instead of raw Elixir messages
-- **Signals are CloudEvents v1.0.2 compliant** with Jido-specific extensions
-- **Every event, command, and state change should flow through Signals**
-- **Signals provide standardized structure, routing, and traceability**
+- **Signal-First**: Use Signals for all inter-process communication (CloudEvents v1.0.2 compliant)
+- **Bus-Centric**: Route all signals through the Bus for history, replay, and pattern-based subscriptions
+- **Hierarchical Types**: Use dot notation (`"user.created"`, `"payment.processed"`)
+- **Validation**: Define custom signal types with schemas for type safety
 
-### Bus-Centric Architecture
-- **Use the Signal Bus as the central nervous system** of your application
-- **All signal routing and distribution goes through the Bus**
-- **The Bus maintains complete signal history and provides replay capabilities**
-- **Subscriptions are pattern-based using dot notation with wildcards**
+## Signal Creation
 
-## Signal Creation and Structure
-
-### Required Fields
-- **`type`**: Use hierarchical dot notation (e.g., `"user.created"`, `"payment.processed"`)
-- **`source`**: Identify the originating service/component (e.g., `"user_service"`, `"payment_processor"`)
-- **`data`**: The actual event payload (keep it flat and focused)
-
-### Signal Type Naming Conventions
 ```elixir
-# ✅ Correct patterns
-"user.created"
-"user.profile.updated"
-"payment.transaction.completed"
-"inventory.item.stock.low"
-
-# ❌ Avoid these patterns
-"userCreated"
-"user_created"
-"USER.CREATED"
-```
-
-### Creating Signals
-```elixir
-# Basic signal creation
+# Basic signal (type, source, data required)
 {:ok, signal} = Jido.Signal.new(%{
   type: "user.created",
-  source: "user_service",
+  source: "user_service", 
   data: %{user_id: 123, email: "user@example.com"}
 })
 
-# With custom signal types (preferred for validation)
+# Custom signal types (preferred - with validation)
 defmodule UserCreated do
   use Jido.Signal,
     type: "user.created",
-    schema: [
-      user_id: [type: :integer, required: true],
-      email: [type: :string, required: true]
-    ]
+    schema: [user_id: [type: :integer, required: true]]
 end
 
-{:ok, signal} = UserCreated.new(%{
-  source: "user_service",
-  data: %{user_id: 123, email: "user@example.com"}
-})
+{:ok, signal} = UserCreated.new(%{source: "user_service", data: %{user_id: 123}})
 ```
 
-## Bus Configuration and Usage
+**Naming**: Use dot notation (`"user.created"`, `"payment.processed"`) - avoid camelCase or underscores.
 
-### Starting a Bus
+## Bus Operations
+
 ```elixir
-# In your application supervision tree
-children = [
-  {Jido.Signal.Bus, name: :my_app_bus}
-]
+# Start bus in supervision tree
+children = [{Jido.Signal.Bus, name: :my_bus}]
 
-Supervisor.start_link(children, strategy: :one_for_one)
-```
+# Subscribe with patterns
+Bus.subscribe(:my_bus, "user.created", dispatch: {:pid, target: self()})  # exact
+Bus.subscribe(:my_bus, "user.*", dispatch: {:pid, target: self()})        # single wildcard  
+Bus.subscribe(:my_bus, "user.**", dispatch: {:pid, target: self()})       # multi wildcard
 
-### Subscribing to Signals
-```elixir
-# Exact match
-Bus.subscribe(:my_bus, "user.created", dispatch: {:pid, target: self()})
-
-# Single-level wildcard
-Bus.subscribe(:my_bus, "user.*", dispatch: {:pid, target: self()})
-
-# Multi-level wildcard
-Bus.subscribe(:my_bus, "user.**", dispatch: {:pid, target: self()})
-```
-
-### Publishing Signals
-```elixir
-# Always publish lists of signals
+# Publish (always as lists)
 Bus.publish(:my_bus, [signal])
-
-# Multiple signals
 Bus.publish(:my_bus, [signal1, signal2, signal3])
 ```
 
-## Routing Patterns
+## Routing and Dispatch
 
-### Path Complexity and Priority
-- **More specific paths execute before wildcards**
-- **Use exact matches when possible** for better performance
-- **Priority ranges: -100 to 100** (higher executes first)
-- **Reserve high priorities (75-100) for critical handlers**
-- **Use default priority (0) for standard business logic**
-
-### Pattern Matching
 ```elixir
-# Simple route
+# Simple routes (pattern, handler, optional priority)
 {"user.created", HandleUserCreated}
+{"audit.**", AuditLogger, 100}  # high priority
 
-# High-priority audit logging
-{"audit.**", AuditLogger, 100}
-
-# Pattern matching for specific conditions
-{"payment.processed",
-  fn signal -> signal.data.amount > 1000 end,
-  HandleLargePayment}
+# Function-based routing
+{"payment.processed", fn signal -> signal.data.amount > 1000 end, HandleLargePayment}
 
 # Multiple dispatch targets
 {"system.error", [
@@ -125,141 +65,89 @@ Bus.publish(:my_bus, [signal1, signal2, signal3])
 ]}
 ```
 
-## Dispatch System
+**Priority**: -100 to 100 (higher first). Specific paths execute before wildcards.
 
-### Built-in Adapters
-- **`:pid`** - Direct delivery to a specific process
-- **`:pubsub`** - Delivery via PubSub mechanism
-- **`:logger`** - Log signals using Logger
-- **`:http`** - HTTP requests using :httpc
-- **`:webhook`** - Webhook delivery with signatures
-- **`:console`** - Print signals to console (development)
-- **`:noop`** - No-op adapter for testing
+## Dispatch Adapters
 
-### Dispatch Configuration
+**Available**: `:pid`, `:pubsub`, `:logger`, `:http`, `:webhook`, `:console`, `:noop`
+
 ```elixir
 # Single dispatch
-jido_dispatch: {:pubsub, topic: "events"}
+dispatch: {:pubsub, topic: "events"}
 
-# Multiple dispatch targets
-jido_dispatch: [
+# Multiple targets
+dispatch: [
   {:pubsub, topic: "events"},
   {:logger, level: :info},
   {:webhook, url: "https://api.example.com/webhook"}
 ]
 
-# PID dispatch with options
-jido_dispatch: {:pid, target: self(), delivery_mode: :async}
+# PID with options
+dispatch: {:pid, target: self(), delivery_mode: :async}
 ```
 
-## Middleware and Extensions
+## Middleware
 
-### Middleware Pipeline
-- **Middleware processes signals before routing**
-- **Use for cross-cutting concerns** (logging, metrics, validation)
-- **Middleware executes in registration order**
-- **Built-in logger middleware available**
-
-### Custom Middleware
 ```elixir
+# Custom middleware
 defmodule MyMiddleware do
   @behaviour Jido.Signal.Bus.Middleware
-
-  def process(signal, _opts) do
-    # Process signal
-    {:ok, signal}
-  end
+  def process(signal, _opts), do: {:ok, signal}
 end
 
 # Configure in bus
 {Jido.Signal.Bus, name: :my_bus, middleware: [{MyMiddleware, []}]}
 ```
 
-## Error Handling and Validation
+**Use for**: logging, metrics, validation, auth. Executes before routing in registration order.
 
-### Signal Validation
-- **Always validate signal data** using custom signal types with schemas
-- **Handle validation errors gracefully**
-- **Use NimbleOptions schemas** for type safety
+## Error Handling
 
-### Error Patterns
 ```elixir
-# Handle signal creation errors
+# Signal creation
 case Jido.Signal.new(params) do
-  {:ok, signal} -> 
-    Bus.publish(:my_bus, [signal])
-  {:error, reason} -> 
-    Logger.error("Failed to create signal: #{inspect(reason)}")
+  {:ok, signal} -> Bus.publish(:my_bus, [signal])
+  {:error, reason} -> Logger.error("Failed: #{inspect(reason)}")
 end
 
-# Handle dispatch errors
+# Dispatch errors
 case Dispatch.dispatch(signal, config) do
-  :ok -> 
-    Logger.info("Signal dispatched successfully")
-  {:error, reason} -> 
-    Logger.error("Dispatch failed: #{inspect(reason)}")
+  :ok -> :ok
+  {:error, reason} -> Logger.error("Dispatch failed: #{inspect(reason)}")
 end
 ```
 
-## Performance and Scalability
+**Validation**: Use custom signal types with schemas. Handle errors gracefully.
 
-### Bus Performance
-- **Bus maintains in-memory signal history** - monitor memory usage
-- **Use snapshots for long-running systems** to manage memory
-- **Consider signal volume** when designing routing patterns
-- **Batch operations** for high-throughput scenarios
+## Performance
 
-### Subscription Management
-- **Unsubscribe when processes terminate** to prevent memory leaks
-- **Use persistent subscriptions** for critical handlers
-- **Monitor subscription count** in production
+**Memory**: Bus keeps signal history in-memory. Use snapshots for long-running systems.
+**Subscriptions**: Unsubscribe on termination. Use persistent subscriptions for critical handlers.
+**Routing**: Exact matches perform better than wildcards. Consider signal volume in design.
 
-## Testing and Development
+## Testing
 
-### Testing Patterns
 ```elixir
-# Test signal creation
-{:ok, signal} = UserCreated.new(%{
-  source: "test",
-  data: %{user_id: 123, email: "test@example.com"}
-})
-
-# Test bus interactions
+# Test signal flow
+{:ok, signal} = UserCreated.new(%{source: "test", data: %{user_id: 123}})
 Bus.subscribe(:test_bus, "user.*", dispatch: {:pid, target: self()})
 Bus.publish(:test_bus, [signal])
-
-# Verify signal received
 assert_receive {:signal, ^signal}
 ```
 
-### Development Tools
-- **Use `:console` adapter** for debugging signal flow
-- **Enable middleware logging** for development
-- **Use `:noop` adapter** for testing without side effects
+**Debug**: Use `:console` adapter, enable middleware logging, `:noop` for testing.
 
-## Integration Patterns
+## Integration
 
-### External Services
 ```elixir
-# Webhook integration
-jido_dispatch: {:webhook, [
-  url: "https://api.example.com/webhook",
-  secret: "webhook_secret",
-  event_type_map: %{"user:created" => "user.created"}
-]}
+# Webhook
+dispatch: {:webhook, [url: "https://api.example.com/webhook", secret: "secret"]}
 
-# HTTP API integration
-jido_dispatch: {:http, [
-  url: "https://api.example.com/events",
-  method: :post,
-  headers: [{"x-api-key", "secret"}]
-]}
-```
+# HTTP API
+dispatch: {:http, [url: "https://api.example.com/events", method: :post]}
 
-### Phoenix Integration
-```elixir
-# PubSub integration
-jido_dispatch: {:pubsub, topic: "user_events"}
+# Phoenix PubSub
+dispatch: {:pubsub, topic: "user_events"}
 
 # Channel broadcasting
 def handle_info({:signal, signal}, socket) do
@@ -268,100 +156,133 @@ def handle_info({:signal, signal}, socket) do
 end
 ```
 
-## Common Anti-Patterns
+## Anti-Patterns
 
-### ❌ Don't Do This
+**❌ Don't:**
+- Use raw Elixir messages: `send(pid, {:user_created, user_id})`
+- Bypass the bus: `GenServer.cast(handler, {:signal, signal})`
+- Use generic types: `"event"`, `"message"`, `"data"`
+- Ignore dispatch errors: `Dispatch.dispatch(signal, config)`
+
+**✅ Do:**
+- Use structured signals: `{:ok, signal} = UserCreated.new(%{user_id: user_id})`
+- Route through bus: `Bus.publish(:my_bus, [signal])`
+- Use specific types: `"user.created"`, `"payment.processed"`
+- Handle errors: `case Dispatch.dispatch(signal, config) do...`
+
+## Debugging
+
+**Tracing**: Use signal IDs for correlation. Leverage signal history and replay for analysis.
+**Monitoring**: Add telemetry for `[:jido, :signal, :published]`, `[:jido, :signal, :dispatched]`, etc.
+
 ```elixir
-# Don't use raw Elixir messages
-send(pid, {:user_created, user_id})
-
-# Don't bypass the bus
-GenServer.cast(handler, {:signal, signal})
-
-# Don't use generic signal types
-"event"
-"message"
-"data"
-
-# Don't ignore dispatch errors
-Dispatch.dispatch(signal, config)  # No error handling
+:telemetry.attach_many("jido-signal-handler", [
+  [:jido, :signal, :published],
+  [:jido, :signal, :dispatched]
+], &MyTelemetryHandler.handle_event/4, nil)
 ```
 
-### ✅ Do This Instead
+## Migration
+
 ```elixir
-# Use structured signals
-{:ok, signal} = UserCreated.new(%{user_id: user_id})
+# From GenServer messages
+GenServer.cast(handler, {:user_created, user_id})  # Before
+{:ok, signal} = UserCreated.new(%{user_id: user_id})  # After
 Bus.publish(:my_bus, [signal])
 
-# Use specific signal types
-"user.created"
-"payment.processed"
-"inventory.updated"
+# From Phoenix PubSub
+Phoenix.PubSub.broadcast(PubSub, "events", {:user_created, user})  # Before
+{:ok, signal} = UserCreated.new(%{user: user})  # After
+Bus.publish(:my_bus, [signal])
+```
 
-# Handle dispatch errors
-case Dispatch.dispatch(signal, config) do
-  :ok -> :ok
-  {:error, reason} -> Logger.error("Dispatch failed: #{reason}")
+## Best Practices
+
+1. Use Signals for all inter-process communication
+2. Define custom signal types with validation schemas  
+3. Use hierarchical type names (`"user.created"`)
+4. Route through the Bus for distribution
+5. Handle errors gracefully in creation and dispatch
+6. Monitor signal volume and memory usage
+7. Use appropriate dispatch adapters
+8. Test signal flow thoroughly
+9. Document signal types and routing patterns
+10. Use middleware for cross-cutting concerns
+
+## Advanced Features
+
+### Journal (Causality Tracking)
+```elixir
+journal = Jido.Signal.Journal.new()
+{:ok, journal} = Journal.record(journal, signal1)
+{:ok, journal} = Journal.record(journal, signal2, signal1.id)  # causality
+effects = Journal.get_effects(journal, signal1.id)
+chain = Journal.trace_chain(journal, signal1.id, :forward)
+```
+
+### Serialization
+```elixir
+config :jido_signal, default_serializer: Jido.Signal.Serialization.JsonSerializer
+{:ok, binary} = Serializer.serialize(signal, serializer: JsonSerializer)
+# Available: JsonSerializer, ErlangTermSerializer, MsgpackSerializer
+```
+
+### Process Topology
+```elixir
+topology = Jido.Signal.Topology.new()
+{:ok, topology} = Topology.register(topology, "parent", parent_pid)
+{:ok, topology} = Topology.register(topology, "child", child_pid, parent_id: "parent")
+tree = Topology.to_tree(topology)
+```
+
+### Persistent Subscriptions
+```elixir
+{:ok, sub_pid} = PersistentSubscription.start_link(
+  bus_pid: bus_pid, path: "user.**", client_pid: self(), max_in_flight: 100)
+GenServer.cast(sub_pid, {:ack, signal_id})
+GenServer.cast(sub_pid, {:reconnect, new_client_pid})
+```
+
+### Bus Snapshots
+```elixir
+{:ok, snapshot_ref, new_state} = Snapshot.create(state, "user.**")
+{:ok, snapshot_data} = Snapshot.read(state, snapshot_ref.id)
+{:ok, new_state} = Snapshot.cleanup(state)
+```
+
+### Signal Replay
+```elixir
+{:ok, signals} = Bus.replay(bus_pid, "user.**", from_timestamp: yesterday)
+{:ok, stream} = Bus.stream(bus_pid, "payment.**", start_from: :origin, batch_size: 100)
+```
+
+## Security & Production
+
+**Security**: Validate signal data with schemas, sanitize external input, implement auth in middleware.
+**Monitoring**: Add telemetry for signal events, monitor signal log size, use snapshots for memory management.
+**Error Handling**: Log errors with signal context, create error signals for failed processing.
+
+```elixir
+# Secure webhook
+dispatch: {:webhook, [url: "https://api.example.com/webhook", secret: "secret", verify_ssl: true]}
+
+# Telemetry
+:telemetry.attach_many("jido-signal-metrics", [
+  [:jido, :signal, :published], [:jido, :signal, :failed]
+], &MyApp.Telemetry.handle_event/4, %{})
+
+# Error handling
+defmodule MyApp.SignalErrorHandler do
+  def handle_signal_error(signal, error) do
+    Logger.error("Signal failed: #{signal.id}", error: inspect(error))
+    {:ok, error_signal} = ErrorSignal.new(%{
+      source: "error_handler", 
+      data: %{original_signal_id: signal.id, error: inspect(error)}
+    })
+    Bus.publish(:error_bus, [error_signal])
+  end
 end
 ```
-
-## Debugging and Monitoring
-
-### Signal Tracing
-- **Use signal IDs** for correlation across services
-- **Leverage signal history** for debugging
-- **Monitor signal flow** through middleware
-- **Use replay capabilities** for post-mortem analysis
-
-### Observability
-```elixir
-# Add telemetry for monitoring
-:telemetry.attach_many(
-  "jido-signal-handler",
-  [
-    [:jido, :signal, :published],
-    [:jido, :signal, :dispatched],
-    [:jido, :signal, :routed]
-  ],
-  &MyTelemetryHandler.handle_event/4,
-  nil
-)
-```
-
-## Migration from Traditional Messaging
-
-### From GenServer Messages
-```elixir
-# Before
-GenServer.cast(user_handler, {:user_created, user_id, email})
-
-# After
-{:ok, signal} = UserCreated.new(%{user_id: user_id, email: email})
-Bus.publish(:my_bus, [signal])
-```
-
-### From Phoenix PubSub
-```elixir
-# Before
-Phoenix.PubSub.broadcast(MyApp.PubSub, "user_events", {:user_created, user})
-
-# After
-{:ok, signal} = UserCreated.new(%{user: user})
-Bus.publish(:my_bus, [signal])
-```
-
-## Best Practices Summary
-
-1. **Always use Signals** for inter-process communication
-2. **Define custom signal types** with validation schemas
-3. **Use descriptive, hierarchical type names**
-4. **Route through the Bus** for all signal distribution
-5. **Handle errors gracefully** in signal creation and dispatch
-6. **Monitor signal volume** and memory usage
-7. **Use appropriate dispatch adapters** for different use cases
-8. **Test signal flow** thoroughly in development
-9. **Document your signal types** and routing patterns
-10. **Use middleware** for cross-cutting concerns
 
 ## Getting Help
 
