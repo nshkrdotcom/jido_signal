@@ -161,7 +161,17 @@ defmodule Jido.Signal.Dispatch do
     end
   end
 
-  def validate_opts(_), do: {:error, :invalid_dispatch_config}
+  def validate_opts(invalid_config) do
+    if should_normalize_errors?() do
+      {:error,
+       Error.validation_error(
+         "Invalid dispatch configuration",
+         %{field: "dispatch_config", value: invalid_config, reason: :invalid_dispatch_config}
+       )}
+    else
+      {:error, :invalid_dispatch_config}
+    end
+  end
 
   @doc """
   Dispatches a signal using the provided configuration.
@@ -363,31 +373,47 @@ defmodule Jido.Signal.Dispatch do
 
   defp normalize_error(reason, adapter, config) when is_atom(reason) do
     if should_normalize_errors?() do
-      details = %{
-        adapter: adapter,
-        reason: reason,
-        config: config
-      }
-
-      {:error, Error.dispatch_error("Dispatch failed: #{reason}", details)}
+      {:error,
+       Error.dispatch_error(
+         "Signal dispatch failed",
+         %{adapter: adapter, reason: reason, config: config}
+       )}
     else
       {:error, reason}
     end
   end
 
-  defp normalize_error(%Error{} = error, _adapter, _config) do
-    {:error, error}
-  end
-
   defp normalize_error(reason, adapter, config) do
     if should_normalize_errors?() do
-      details = %{
-        adapter: adapter,
-        reason: reason,
-        config: config
-      }
+      {:error,
+       Error.dispatch_error(
+         "Signal dispatch failed",
+         %{adapter: adapter, reason: reason, config: config}
+       )}
+    else
+      {:error, reason}
+    end
+  end
 
-      {:error, Error.dispatch_error("Dispatch failed", details)}
+  defp normalize_validation_error(reason, adapter, config) when is_atom(reason) do
+    if should_normalize_errors?() do
+      {:error,
+       Error.validation_error(
+         "Invalid adapter configuration",
+         %{field: "config", value: config, adapter: adapter, reason: reason}
+       )}
+    else
+      {:error, reason}
+    end
+  end
+
+  defp normalize_validation_error(reason, adapter, config) do
+    if should_normalize_errors?() do
+      {:error,
+       Error.validation_error(
+         "Invalid adapter configuration",
+         %{field: "config", value: config, adapter: adapter, reason: reason}
+       )}
     else
       {:error, reason}
     end
@@ -421,12 +447,12 @@ defmodule Jido.Signal.Dispatch do
         else
           case adapter_module.validate_opts(opts) do
             {:ok, validated_opts} -> {:ok, {adapter, validated_opts}}
-            {:error, reason} -> normalize_error(reason, adapter, {adapter, opts})
+            {:error, reason} -> normalize_validation_error(reason, adapter, {adapter, opts})
           end
         end
 
       {:error, reason} ->
-        normalize_error(reason, adapter, {adapter, opts})
+        normalize_validation_error(reason, adapter, {adapter, opts})
     end
   end
 

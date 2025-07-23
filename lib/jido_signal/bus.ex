@@ -356,17 +356,19 @@ defmodule Jido.Signal.Bus do
       is_nil(subscription) ->
         {:reply,
          {:error,
-          Error.validation_error("Subscription does not exist", %{
-            subscription_id: subscription_id
-          })}, state}
+          Error.validation_error(
+            "Subscription does not exist",
+            %{field: :subscription_id, value: subscription_id}
+          )}, state}
 
       # If subscription is not persistent, return error
       not subscription.persistent? ->
         {:reply,
          {:error,
-          Error.validation_error("Subscription is not persistent", %{
-            subscription_id: subscription_id
-          })}, state}
+          Error.validation_error(
+            "Subscription is not persistent",
+            %{field: :subscription_id, value: subscription_id}
+          )}, state}
 
       # Otherwise, acknowledge the signal
       true ->

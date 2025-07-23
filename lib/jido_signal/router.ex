@@ -164,7 +164,7 @@ defmodule Jido.Signal.Router do
   ## See Also
 
   - `Jido.Signal` - Signal structure and validation
-  - `Jido.Signal.Error` - Error types and handling
+  - `Jido.Signal.Errors` - Error types and handling
   - `Jido.Signal.Dispatch` - Dispatch adapter interface
   """
   use Private
@@ -284,10 +284,10 @@ defmodule Jido.Signal.Router do
         router
 
       {:error, reason} ->
-        {:error,
-         Error.validation_error("Invalid router configuration", %{
-           reason: reason
-         })}
+        raise Error.validation_error(
+                "Invalid router configuration",
+                %{field: "routes", value: routes, reason: reason}
+              )
     end
   end
 
@@ -468,7 +468,12 @@ defmodule Jido.Signal.Router do
         end
 
       invalid, {:ok, _acc} ->
-        {:halt, {:error, Error.validation_error("Expected Route struct", %{value: invalid})}}
+        {:halt,
+         {:error,
+          Error.validation_error(
+            "Expected Route struct",
+            %{field: "route", value: invalid}
+          )}}
     end)
     |> case do
       {:ok, list} -> {:ok, Enum.reverse(list)}
@@ -478,7 +483,10 @@ defmodule Jido.Signal.Router do
 
   def validate(invalid) do
     {:error,
-     Error.validation_error("Expected Route struct or list of Route structs", %{value: invalid})}
+     Error.validation_error(
+       "Expected Route struct or list of Route structs",
+       %{field: "routes", value: invalid}
+     )}
   end
 
   @doc """
@@ -502,15 +510,26 @@ defmodule Jido.Signal.Router do
   """
   @spec route(Router.t(), Signal.t()) :: {:ok, [term()]} | {:error, term()}
   def route(%Router{trie: _trie}, %Signal{type: nil}) do
-    {:error, Error.routing_error("Signal type cannot be nil")}
+    {:error,
+     Error.routing_error(
+       "Signal type cannot be nil",
+       %{route: nil, reason: :nil_signal_type}
+     )}
   end
 
   def route(%Router{trie: trie}, %Signal{} = signal) do
     results = Engine.route_signal(trie, signal)
 
     case results do
-      [] -> {:error, Error.routing_error("No matching handlers found for signal")}
-      _ -> {:ok, results}
+      [] ->
+        {:error,
+         Error.routing_error(
+           "No matching handlers found for signal",
+           %{signal_type: signal.type, route: signal.type, reason: :no_handlers_found}
+         )}
+
+      _ ->
+        {:ok, results}
     end
   end
 

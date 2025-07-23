@@ -38,9 +38,10 @@ defmodule Jido.Signal.Bus.Subscriber do
       dbug("subscription already exists", subscription_id: subscription_id)
 
       {:error,
-       Error.validation_error("Subscription already exists", %{
-         subscription_id: subscription_id
-       })}
+       Error.validation_error(
+         "Subscription already exists",
+         %{field: :subscription_id, value: subscription_id}
+       )}
     else
       # Create the subscription struct
       subscription = %Subscriber{
@@ -81,12 +82,21 @@ defmodule Jido.Signal.Bus.Subscriber do
                 {:ok, new_state}
 
               {:error, reason} ->
-                {:error, Error.execution_error("Failed to add subscription", %{reason: reason})}
+                {:error,
+                 Error.execution_error(
+                   "Failed to add subscription",
+                   %{action: "add_subscription", reason: reason}
+                 )}
             end
 
           {:error, reason} ->
             dbug("failed to start persistent subscription", reason: reason)
-            {:error, Error.execution_error("Failed to start persistent subscription", reason)}
+
+            {:error,
+             Error.execution_error(
+               "Failed to start persistent subscription",
+               %{action: "start_persistent_subscription", reason: reason}
+             )}
         end
       else
         dbug("creating non-persistent subscription", subscription: subscription)
@@ -110,7 +120,11 @@ defmodule Jido.Signal.Bus.Subscriber do
             {:ok, final_state}
 
           {:error, reason} ->
-            {:error, Error.execution_error("Failed to add subscription route", %{reason: reason})}
+            {:error,
+             Error.execution_error(
+               "Failed to add subscription route",
+               %{action: "add_route", reason: reason}
+             )}
         end
       end
     end
@@ -158,7 +172,10 @@ defmodule Jido.Signal.Bus.Subscriber do
         dbug("subscription not found", subscription_id: subscription_id)
 
         {:error,
-         Error.validation_error("Subscription does not exist", %{subscription_id: subscription_id})}
+         Error.validation_error(
+           "Subscription does not exist",
+           %{field: :subscription_id, value: subscription_id}
+         )}
     end
   end
 
