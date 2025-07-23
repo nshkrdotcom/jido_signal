@@ -27,7 +27,7 @@ defmodule Jido.Signal.Bus.Subscriber do
   end
 
   @spec subscribe(BusState.t(), String.t(), String.t(), keyword()) ::
-          {:ok, BusState.t()} | {:error, Error.t()}
+          {:ok, BusState.t()} | {:error, Exception.t()}
   def subscribe(%BusState{} = state, subscription_id, path, opts) do
     dbug("subscribe", state: state, subscription_id: subscription_id, path: path, opts: opts)
     persistent? = Keyword.get(opts, :persistent?, false)
@@ -144,10 +144,10 @@ defmodule Jido.Signal.Bus.Subscriber do
   ## Returns
 
   - `{:ok, new_state}` if successful
-  - `{:error, Error.t()}` if the subscription doesn't exist or removal fails
+  - `{:error, Exception.t()}` if the subscription doesn't exist or removal fails
   """
   @spec unsubscribe(BusState.t(), String.t(), keyword()) ::
-          {:ok, BusState.t()} | {:error, Error.t()}
+          {:ok, BusState.t()} | {:error, Exception.t()}
   def unsubscribe(%BusState{} = state, subscription_id, _opts \\ []) do
     dbug("unsubscribe", state: state, subscription_id: subscription_id)
     # Get the subscription before removing it
