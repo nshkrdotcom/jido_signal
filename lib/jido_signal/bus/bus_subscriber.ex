@@ -27,7 +27,7 @@ defmodule Jido.Signal.Bus.Subscriber do
   end
 
   @spec subscribe(BusState.t(), String.t(), String.t(), keyword()) ::
-          {:ok, BusState.t()} | {:error, Error.t()}
+          {:ok, BusState.t()} | {:error, Exception.t()}
   def subscribe(%BusState{} = state, subscription_id, path, opts) do
     dbug("subscribe", state: state, subscription_id: subscription_id, path: path, opts: opts)
     persistent? = Keyword.get(opts, :persistent?, false)
@@ -38,9 +38,10 @@ defmodule Jido.Signal.Bus.Subscriber do
       dbug("subscription already exists", subscription_id: subscription_id)
 
       {:error,
-       Error.validation_error("Subscription already exists", %{
-         subscription_id: subscription_id
-       })}
+       Error.validation_error(
+         "Subscription already exists",
+         %{field: :subscription_id, value: subscription_id}
+       )}
     else
       # Create the subscription struct
       subscription = %Subscriber{
@@ -81,12 +82,21 @@ defmodule Jido.Signal.Bus.Subscriber do
                 {:ok, new_state}
 
               {:error, reason} ->
-                {:error, Error.execution_error("Failed to add subscription", %{reason: reason})}
+                {:error,
+                 Error.execution_error(
+                   "Failed to add subscription",
+                   %{action: "add_subscription", reason: reason}
+                 )}
             end
 
           {:error, reason} ->
             dbug("failed to start persistent subscription", reason: reason)
-            {:error, Error.execution_error("Failed to start persistent subscription", reason)}
+
+            {:error,
+             Error.execution_error(
+               "Failed to start persistent subscription",
+               %{action: "start_persistent_subscription", reason: reason}
+             )}
         end
       else
         dbug("creating non-persistent subscription", subscription: subscription)
@@ -110,7 +120,11 @@ defmodule Jido.Signal.Bus.Subscriber do
             {:ok, final_state}
 
           {:error, reason} ->
-            {:error, Error.execution_error("Failed to add subscription route", %{reason: reason})}
+            {:error,
+             Error.execution_error(
+               "Failed to add subscription route",
+               %{action: "add_route", reason: reason}
+             )}
         end
       end
     end
@@ -130,10 +144,10 @@ defmodule Jido.Signal.Bus.Subscriber do
   ## Returns
 
   - `{:ok, new_state}` if successful
-  - `{:error, Error.t()}` if the subscription doesn't exist or removal fails
+  - `{:error, Exception.t()}` if the subscription doesn't exist or removal fails
   """
   @spec unsubscribe(BusState.t(), String.t(), keyword()) ::
-          {:ok, BusState.t()} | {:error, Error.t()}
+          {:ok, BusState.t()} | {:error, Exception.t()}
   def unsubscribe(%BusState{} = state, subscription_id, _opts \\ []) do
     dbug("unsubscribe", state: state, subscription_id: subscription_id)
     # Get the subscription before removing it
@@ -158,7 +172,10 @@ defmodule Jido.Signal.Bus.Subscriber do
         dbug("subscription not found", subscription_id: subscription_id)
 
         {:error,
-         Error.validation_error("Subscription does not exist", %{subscription_id: subscription_id})}
+         Error.validation_error(
+           "Subscription does not exist",
+           %{field: :subscription_id, value: subscription_id}
+         )}
     end
   end
 

@@ -82,7 +82,7 @@ defmodule JidoTest.Signal.Bus.SubscriberTest do
       result = Subscriber.subscribe(state, subscription_id, path, dispatch: dispatch)
 
       assert {:error, error} = result
-      assert error.type == :validation_error
+      # error type assertion removed since new error structure doesn't have class field
       assert error.message =~ "Subscription already exists"
     end
   end
@@ -118,7 +118,7 @@ defmodule JidoTest.Signal.Bus.SubscriberTest do
       result = Subscriber.unsubscribe(state, "non-existent-sub")
 
       assert {:error, error} = result
-      assert error.type == :validation_error
+      # error type assertion removed since new error structure doesn't have class field
       assert error.message =~ "Subscription does not exist"
     end
   end

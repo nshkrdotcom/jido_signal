@@ -56,16 +56,19 @@ defmodule Jido.Signal.Router.Validator do
 
   def normalize(invalid) do
     {:error,
-     Error.validation_error("Invalid route specification format", %{
-       route: invalid,
-       expected_formats: [
-         "%Route{}",
-         "{path, target}",
-         "{path, target, priority}",
-         "{path, match_fn, target}",
-         "{path, match_fn, target, priority}"
-       ]
-     })}
+     Error.validation_error(
+       "Invalid route specification format",
+       %{
+         value: invalid,
+         expected_formats: [
+           "%Route{}",
+           "{path, target}",
+           "{path, target, priority}",
+           "{path, match_fn, target}",
+           "{path, match_fn, target, priority}"
+         ]
+       }
+     )}
   end
 
   # Private helpers for normalization
@@ -107,16 +110,19 @@ defmodule Jido.Signal.Router.Validator do
 
   defp normalize_route_spec(invalid) do
     {:error,
-     Error.validation_error("Invalid route specification format", %{
-       route: invalid,
-       expected_formats: [
-         "%Route{}",
-         "{path, target}",
-         "{path, target, priority}",
-         "{path, match_fn, target}",
-         "{path, match_fn, target, priority}"
-       ]
-     })}
+     Error.validation_error(
+       "Invalid route specification format",
+       %{
+         value: invalid,
+         expected_formats: [
+           "%Route{}",
+           "{path, target}",
+           "{path, target, priority}",
+           "{path, match_fn, target}",
+           "{path, match_fn, target, priority}"
+         ]
+       }
+     )}
   end
 
   defp normalize_target(target) do

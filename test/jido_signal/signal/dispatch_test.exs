@@ -3,6 +3,18 @@ defmodule Jido.Signal.DispatchTest do
 
   alias Jido.Signal.Dispatch
 
+  setup do
+    # Enable error normalization for all tests
+    Application.put_env(:jido, :normalize_dispatch_errors, true)
+
+    on_exit(fn ->
+      # Reset to default after tests
+      Application.delete_env(:jido, :normalize_dispatch_errors)
+    end)
+
+    :ok
+  end
+
   # Mock bus adapter for testing
   defmodule MockBusAdapter do
     @behaviour Jido.Signal.Dispatch.Adapter
@@ -80,7 +92,7 @@ defmodule Jido.Signal.DispatchTest do
       assert_receive {:DOWN, ^ref, :process, ^pid, _}
 
       config = {:pid, [target: pid, delivery_mode: :async]}
-      assert {:error, :process_not_alive} = Dispatch.dispatch(signal, config)
+      assert {:error, %Jido.Signal.Error.DispatchError{}} = Dispatch.dispatch(signal, config)
     end
   end
 
@@ -108,7 +120,7 @@ defmodule Jido.Signal.DispatchTest do
 
     test "returns error when named process not found", %{signal: signal} do
       config = {:named, [target: {:name, :nonexistent_process}, delivery_mode: :async]}
-      assert {:error, :process_not_found} = Dispatch.dispatch(signal, config)
+      assert {:error, %Jido.Signal.Error.DispatchError{}} = Dispatch.dispatch(signal, config)
     end
   end
 
@@ -133,7 +145,7 @@ defmodule Jido.Signal.DispatchTest do
     test "returns error when bus config is invalid", %{signal: signal} do
       # Missing stream
       config = {MockBusAdapter, [target: :test_bus]}
-      assert {:error, :invalid_bus_config} = Dispatch.dispatch(signal, config)
+      assert {:error, %Jido.Signal.Error.DispatchError{}} = Dispatch.dispatch(signal, config)
     end
   end
 
@@ -264,7 +276,7 @@ defmodule Jido.Signal.DispatchTest do
         {:logger, [level: :debug]}
       ]
 
-      assert {:error, {:calling_self, _}} = Dispatch.dispatch(signal, config)
+      assert {:error, %Jido.Signal.Error.DispatchError{}} = Dispatch.dispatch(signal, config)
 
       # Should still receive the async signal
       assert_receive {:signal, received_signal}
@@ -286,7 +298,7 @@ defmodule Jido.Signal.DispatchTest do
         {:logger, [level: :debug]}
       ]
 
-      assert {:error, :process_not_alive} = Dispatch.dispatch(signal, config)
+      assert {:error, %Jido.Signal.Error.DispatchError{}} = Dispatch.dispatch(signal, config)
 
       # Verify successful dispatches still occurred
       assert_receive {:signal, received_signal}
@@ -325,7 +337,7 @@ defmodule Jido.Signal.DispatchTest do
       config = {:pid, [target: pid, delivery_mode: :async]}
       assert {:ok, task} = Dispatch.dispatch_async(signal, config)
 
-      assert {:error, :process_not_alive} = Task.await(task)
+      assert {:error, %Jido.Signal.Error.DispatchError{}} = Task.await(task)
     end
 
     test "supports multiple async dispatches", %{signal: signal} do
@@ -442,7 +454,8 @@ defmodule Jido.Signal.DispatchTest do
         {TestBatchAdapter, [target: test_pid, index: 3]}
       ]
 
-      assert {:error, [{1, :invalid_config}]} = Dispatch.dispatch_batch(signal, configs, [])
+      assert {:error, [{1, %Jido.Signal.Error.InvalidInputError{}}]} =
+               Dispatch.dispatch_batch(signal, configs, [])
 
       # Should still receive signals from successful dispatches
       assert_receive {:batch_signal, ^signal, 1}

@@ -1,332 +1,234 @@
 defmodule Jido.Signal.Error do
   @moduledoc """
-  Defines error structures and helper functions for Jido
+  Centralized error handling for Jido Signal using Splode.
 
-  This module provides a standardized way to create and handle errors within the Jido system.
-  It offers a set of predefined error types and functions to create, manipulate, and convert
-  error structures consistently across the application.
+  This module provides a consistent way to create, aggregate, and handle errors
+  within the Jido Signal system. It uses the Splode library to enable error
+  composition and classification.
 
-  > Why not use Exceptions?
-  >
-  > Jido is designed to be a functional system, strictly adhering to the use of result tuples.
-  > This approach provides several benefits:
-  >
-  > 1. Consistent error handling: By using `{:ok, result}` or `{:error, reason}` tuples,
-  >    we ensure a uniform way of handling success and failure cases throughout the system.
-  >
-  > 2. Composability: Monadic actions can be easily chained together, allowing for
-  >    cleaner and more maintainable code.
-  >
-  > 3. Explicit error paths: The use of result tuples makes error cases explicit,
-  >    reducing the likelihood of unhandled errors.
-  >
-  > 4. No silent failures: Unlike exceptions, which can be silently caught and ignored,
-  >    result tuples require explicit handling of both success and error cases.
-  >
-  > 5. Better testability: Monadic actions are easier to test, as both success and
-  >    error paths can be explicitly verified.
-  >
-  > By using this approach instead of exceptions, we gain more control over the flow of our
-  > actions and ensure that errors are handled consistently across the entire system.
+  ## Error Classes
+
+  Errors are organized into the following classes, in order of precedence:
+
+  - `:invalid` - Input validation, bad requests, and invalid configurations
+  - `:execution` - Runtime execution errors and signal processing failures
+  - `:routing` - Signal routing and dispatch errors
+  - `:timeout` - Signal processing and delivery timeouts
+  - `:internal` - Unexpected internal errors and system failures
+
+  When multiple errors are aggregated, the class of the highest precedence error
+  determines the overall error class.
 
   ## Usage
 
-  Use this module to create specific error types when exceptions occur in your Jido actions.
-  This allows for consistent error handling and reporting throughout the system.
+  Use this module to create and handle errors consistently:
 
-  Example:
+      # Create a specific error
+      {:error, error} = Jido.Signal.Error.validation_error("Invalid signal format", field: :signal_type)
 
-      defmodule MyExec do
-        alias Jido.Signal.Error
+      # Create routing error
+      {:error, routing} = Jido.Signal.Error.routing_error("No route found for signal", target: "unknown")
 
-        def run(params) do
-          case validate(params) do
-            :ok -> perform_action(params)
-            {:error, reason} -> Error.validation_error("Invalid parameters")
-          end
-        end
+      # Convert any value to a proper error
+      {:error, normalized} = Jido.Signal.Error.to_error("Signal processing failed")
+  """
+
+  # Error class modules for Splode
+  defmodule Invalid do
+    @moduledoc "Invalid input error class"
+    use Splode.ErrorClass, class: :invalid
+  end
+
+  defmodule Execution do
+    @moduledoc "Execution error class"
+    use Splode.ErrorClass, class: :execution
+  end
+
+  defmodule Routing do
+    @moduledoc "Routing error class"
+    use Splode.ErrorClass, class: :routing
+  end
+
+  defmodule Timeout do
+    @moduledoc "Timeout error class"
+    use Splode.ErrorClass, class: :timeout
+  end
+
+  defmodule Internal do
+    @moduledoc "Internal error class"
+    use Splode.ErrorClass, class: :internal
+
+    defmodule UnknownError do
+      @moduledoc "Unknown internal error"
+      defexception [:message, :details]
+
+      @impl true
+      def exception(opts) do
+        %__MODULE__{
+          message: Keyword.get(opts, :message, "Unknown error"),
+          details: Keyword.get(opts, :details, %{})
+        }
       end
-  """
+    end
+  end
 
-  @typedoc """
-  Defines the possible error types in the Jido system.
+  use Splode,
+    error_classes: [
+      invalid: Invalid,
+      execution: Execution,
+      routing: Routing,
+      timeout: Timeout,
+      internal: Internal
+    ],
+    unknown_error: Internal.UnknownError
 
-  - `:bad_request`: Used when the client sends an invalid or malformed request.
-  - `:validation_error`: Used when input validation fails.
-  - `:execution_error`: Used when an error occurs during action execution.
-  - `:timeout`: Used when an action exceeds its time limit.
-  - `:planning_error`: Used when an error occurs during action planning.
-  - `:routing_error`: Used when an error occurs during action routing.
-  - `:dispatch_error`: Used when an error occurs during signal dispatching.
-  """
-  @type error_type ::
-          :bad_request
-          | :validation_error
-          | :execution_error
-          | :planning_error
-          | :timeout
-          | :routing_error
-          | :dispatch_error
+  # Define specific error structs inline
+  defmodule InvalidInputError do
+    @moduledoc "Error for invalid input parameters"
+    defexception [:message, :field, :value, :details]
 
-  use TypedStruct
+    @impl true
+    def exception(opts) do
+      message = Keyword.get(opts, :message, "Invalid input")
 
-  @typedoc """
-  Represents a structured error in the Jido system.
+      %__MODULE__{
+        message: message,
+        field: Keyword.get(opts, :field),
+        value: Keyword.get(opts, :value),
+        details: Keyword.get(opts, :details, %{})
+      }
+    end
+  end
 
-  Fields:
-  - `type`: The category of the error (see `t:error_type/0`).
-  - `message`: A human-readable description of the error.
-  - `details`: Optional map containing additional error context.
-  - `stacktrace`: Optional list representing the error's stacktrace.
-  """
-  typedstruct do
-    field(:type, error_type(), enforce: true)
-    field(:message, String.t(), enforce: true)
-    field(:details, map() | nil, default: %{})
-    field(:stacktrace, list(), default: [])
+  defmodule ExecutionFailureError do
+    @moduledoc "Error for signal processing failures"
+    defexception [:message, :details]
+
+    @impl true
+    def exception(opts) do
+      %__MODULE__{
+        message: Keyword.get(opts, :message, "Signal processing failed"),
+        details: Keyword.get(opts, :details, %{})
+      }
+    end
+  end
+
+  defmodule RoutingError do
+    @moduledoc "Error for signal routing failures"
+    defexception [:message, :target, :details]
+
+    @impl true
+    def exception(opts) do
+      %__MODULE__{
+        message: Keyword.get(opts, :message, "Signal routing failed"),
+        target: Keyword.get(opts, :target),
+        details: Keyword.get(opts, :details, %{})
+      }
+    end
+  end
+
+  defmodule TimeoutError do
+    @moduledoc "Error for signal processing timeouts"
+    defexception [:message, :timeout, :details]
+
+    @impl true
+    def exception(opts) do
+      %__MODULE__{
+        message: Keyword.get(opts, :message, "Signal processing timed out"),
+        timeout: Keyword.get(opts, :timeout),
+        details: Keyword.get(opts, :details, %{})
+      }
+    end
+  end
+
+  defmodule DispatchError do
+    @moduledoc "Error for signal dispatch failures"
+    defexception [:message, :details]
+
+    @impl true
+    def exception(opts) do
+      %__MODULE__{
+        message: Keyword.get(opts, :message, "Signal dispatch failed"),
+        details: Keyword.get(opts, :details, %{})
+      }
+    end
+  end
+
+  defmodule InternalError do
+    @moduledoc "Error for unexpected internal failures"
+    defexception [:message, :details]
+
+    @impl true
+    def exception(opts) do
+      %__MODULE__{
+        message: Keyword.get(opts, :message, "Internal error"),
+        details: Keyword.get(opts, :details, %{})
+      }
+    end
   end
 
   @doc """
-  Creates a new error struct with the given type and message.
-
-  This is a low-level function used by other error creation functions in this module.
-  Consider using the specific error creation functions unless you need fine-grained control.
-
-  ## Parameters
-  - `type`: The error type (see `t:error_type/0`).
-  - `message`: A string describing the error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Examples
-
-      iex> Jido.Signal.Error.new(:config_error, "Invalid configuration")
-      %Jido.Signal.Error{
-        type: :config_error,
-        message: "Invalid configuration",
-        details: nil,
-        stacktrace: [...]
-      }
-
-      iex> Jido.Signal.Error.new(:execution_error, "Exec failed", %{step: "data_processing"})
-      %Jido.Signal.Error{
-        type: :execution_error,
-        message: "Exec failed",
-        details: %{step: "data_processing"},
-        stacktrace: [...]
-      }
+  Creates a validation error for invalid input parameters.
   """
-  @spec new(error_type(), String.t(), map() | nil, list() | nil) :: t()
-  def new(type, message, details \\ nil, stacktrace \\ nil) do
-    %__MODULE__{
-      type: type,
+  def validation_error(message, details \\ %{}) do
+    InvalidInputError.exception(
       message: message,
-      details: details || %{},
-      stacktrace: stacktrace || capture_stacktrace()
-    }
+      field: details[:field],
+      value: details[:value],
+      details: details
+    )
   end
 
   @doc """
-  Creates a new bad request error.
-
-  Use this when the client sends an invalid or malformed request.
-
-  ## Parameters
-  - `message`: A string describing the error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.bad_request("Missing required parameter 'user_id'")
-      %Jido.Signal.Error{
-        type: :bad_request,
-        message: "Missing required parameter 'user_id'",
-        details: nil,
-        stacktrace: [...]
-      }
+  Creates an execution error for signal processing failures.
   """
-  @spec bad_request(String.t(), map() | nil, list() | nil) :: t()
-  def bad_request(message, details \\ nil, stacktrace \\ nil) do
-    new(:bad_request, message, details, stacktrace)
+  def execution_error(message, details \\ %{}) do
+    ExecutionFailureError.exception(
+      message: message,
+      details: details
+    )
   end
 
   @doc """
-  Creates a new validation error.
-
-  Use this when input validation fails for an action.
-
-  ## Parameters
-  - `message`: A string describing the validation error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.validation_error("Invalid email format", %{field: "email", value: "not-an-email"})
-      %Jido.Signal.Error{
-        type: :validation_error,
-        message: "Invalid email format",
-        details: %{field: "email", value: "not-an-email"},
-        stacktrace: [...]
-      }
+  Creates a routing error for signal routing failures.
   """
-  @spec validation_error(String.t(), map() | nil, list() | nil) :: t()
-  def validation_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:validation_error, message, details, stacktrace)
+  def routing_error(message, details \\ %{}) do
+    RoutingError.exception(
+      message: message,
+      target: details[:target],
+      details: details
+    )
   end
 
   @doc """
-  Creates a new execution error.
-
-  Use this when an error occurs during the execution of an action.
-
-  ## Parameters
-  - `message`: A string describing the execution error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.execution_error("Failed to process data", %{step: "data_transformation"})
-      %Jido.Signal.Error{
-        type: :execution_error,
-        message: "Failed to process data",
-        details: %{step: "data_transformation"},
-        stacktrace: [...]
-      }
+  Creates a timeout error for signal processing timeouts.
   """
-  @spec execution_error(String.t(), map() | nil, list() | nil) :: t()
-  def execution_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:execution_error, message, details, stacktrace)
+  def timeout_error(message, details \\ %{}) do
+    TimeoutError.exception(
+      message: message,
+      timeout: details[:timeout],
+      details: details
+    )
   end
 
   @doc """
-  Creates a new timeout error.
-
-  Use this when an action exceeds its allocated time limit.
-
-  ## Parameters
-  - `message`: A string describing the timeout error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.timeout("Exec timed out after 30 seconds", %{action: "FetchUserData"})
-      %Jido.Signal.Error{
-        type: :timeout,
-        message: "Exec timed out after 30 seconds",
-        details: %{action: "FetchUserData"},
-        stacktrace: [...]
-      }
+  Creates a dispatch error for signal dispatch failures.
   """
-  @spec timeout(String.t(), map() | nil, list() | nil) :: t()
-  def timeout(message, details \\ nil, stacktrace \\ nil) do
-    new(:timeout, message, details, stacktrace)
+  def dispatch_error(message, details \\ %{}) do
+    DispatchError.exception(
+      message: message,
+      details: details
+    )
   end
 
   @doc """
-  Creates a new routing error.
-
-  Use this when an error occurs during action routing.
-
-  ## Parameters
-  - `message`: A string describing the routing error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.routing_error("Invalid route configuration", %{route: "user_action"})
-      %Jido.Signal.Error{
-        type: :routing_error,
-        message: "Invalid route configuration",
-        details: %{route: "user_action"},
-        stacktrace: [...]
-      }
+  Creates an internal server error.
   """
-  @spec routing_error(String.t(), map() | nil, list() | nil) :: t()
-  def routing_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:routing_error, message, details, stacktrace)
-  end
-
-  @doc """
-  Creates a new dispatch error.
-
-  Use this when an error occurs during signal dispatching.
-
-  ## Parameters
-  - `message`: A string describing the dispatch error.
-  - `details`: (optional) A map containing additional error details.
-  - `stacktrace`: (optional) The stacktrace at the point of error.
-
-  ## Example
-
-      iex> Jido.Signal.Error.dispatch_error("Failed to deliver signal", %{adapter: :http, reason: :timeout})
-      %Jido.Signal.Error{
-        type: :dispatch_error,
-        message: "Failed to deliver signal",
-        details: %{adapter: :http, reason: :timeout},
-        stacktrace: [...]
-      }
-  """
-  @spec dispatch_error(String.t(), map() | nil, list() | nil) :: t()
-  def dispatch_error(message, details \\ nil, stacktrace \\ nil) do
-    new(:dispatch_error, message, details, stacktrace)
-  end
-
-  @doc """
-  Converts the error struct to a plain map.
-
-  This function transforms the error struct into a plain map,
-  including the error type and stacktrace if available. It's useful
-  for serialization or when working with APIs that expect plain maps.
-
-  ## Parameters
-  - `error`: An error struct of type `t:t/0`.
-
-  ## Returns
-  A map representation of the error.
-
-  ## Example
-
-      iex> error = Jido.Signal.Error.validation_error("Invalid input")
-      iex> Jido.Signal.Error.to_map(error)
-      %{
-        type: :validation_error,
-        message: "Invalid input",
-        stacktrace: [...]
-      }
-  """
-  @spec to_map(t()) :: map()
-  def to_map(%__MODULE__{} = error) do
-    error
-    |> Map.from_struct()
-    |> Enum.reject(fn {_, v} -> is_nil(v) end)
-    |> Map.new()
-  end
-
-  @doc """
-  Captures the current stacktrace.
-
-  This function is useful when you want to capture the stacktrace at a specific point
-  in your code, rather than at the point where the error is created. It drops the first
-  two entries from the stacktrace to remove internal function calls related to this module.
-
-  ## Returns
-  The current stacktrace as a list.
-
-  ## Example
-
-      iex> stacktrace = Jido.Signal.Error.capture_stacktrace()
-      iex> is_list(stacktrace)
-      true
-  """
-  @spec capture_stacktrace() :: list()
-  def capture_stacktrace do
-    {:current_stacktrace, stacktrace} = Process.info(self(), :current_stacktrace)
-    Enum.drop(stacktrace, 2)
+  def internal_error(message, details \\ %{}) do
+    InternalError.exception(
+      message: message,
+      details: details
+    )
   end
 
   @doc """
@@ -408,142 +310,4 @@ defmodule Jido.Signal.Error do
     do: error
 
   def format_nimble_validation_error(error, _module_type, _module), do: inspect(error)
-end
-
-defimpl String.Chars, for: Jido.Signal.Error do
-  @doc """
-  Implements String.Chars protocol for Jido.Signal.Error.
-  Returns a human-readable string representation focusing on type and message.
-  """
-  def to_string(%Jido.Signal.Error{type: type, message: message, details: details}) do
-    base = "[#{type}] #{message}"
-
-    if details do
-      "#{base} (#{format_details(details)})"
-    else
-      base
-    end
-  end
-
-  # Format map details with sorted keys for consistent output
-  defp format_details(details) when is_map(details) do
-    details
-    |> Enum.reject(fn {_k, v} -> match?(%Jido.Signal.Error{}, v) end)
-    |> Enum.sort_by(fn {k, _v} -> Kernel.to_string(k) end)
-    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{format_value(v)}" end)
-  end
-
-  # Handle nested map values
-  defp format_value(%{} = map) do
-    map_str =
-      map
-      |> Enum.sort_by(fn {k, _v} -> Kernel.to_string(k) end)
-      |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{inspect(v)}" end)
-
-    "%{#{map_str}}"
-  end
-
-  defp format_value(value), do: inspect(value)
-end
-
-defimpl Inspect, for: Jido.Signal.Error do
-  import Inspect.Algebra
-
-  @doc """
-  Implements Inspect protocol for Jido.Signal.Error.
-  Provides a detailed multi-line representation for debugging.
-  """
-  def inspect(error, opts) do
-    # Start with basic error structure
-    parts = [
-      "#Jido.Signal.Error<",
-      concat([
-        line(),
-        "  type: ",
-        to_doc(error.type, opts)
-      ]),
-      concat([
-        line(),
-        "  message: ",
-        to_doc(error.message, opts)
-      ])
-    ]
-
-    # Add details if present
-    parts =
-      if error.details do
-        formatted_details = format_error_details(error.details, opts)
-
-        parts ++
-          [
-            concat([
-              line(),
-              "  details: ",
-              formatted_details
-            ])
-          ]
-      else
-        parts
-      end
-
-    # Add stacktrace if present and enabled in opts
-    parts =
-      if error.stacktrace && opts.limit != :infinity do
-        formatted_stacktrace =
-          error.stacktrace
-          |> Enum.take(5)
-          |> Enum.map_join("\n    ", &Exception.format_stacktrace_entry/1)
-
-        parts ++
-          [
-            concat([
-              line(),
-              "  stacktrace:",
-              line(),
-              "    ",
-              formatted_stacktrace
-            ])
-          ]
-      else
-        parts
-      end
-
-    concat([
-      concat(Enum.intersperse(parts, "")),
-      line(),
-      ">"
-    ])
-  end
-
-  # Format details with special handling for original exceptions
-  defp format_error_details(%{original_exception: exception} = details, opts)
-       when not is_nil(exception) do
-    # Format the exception and its stacktrace
-    exception_class = exception.__struct__
-    exception_message = Exception.message(exception)
-
-    # Create a formatted version of the exception details
-    exception_details = "#{exception_class}: #{exception_message}"
-
-    # Remove the original_exception from the details map and add the formatted details
-    details_without_exception =
-      details
-      |> Map.delete(:original_exception)
-      |> Map.put(:exception_details, exception_details)
-
-    # Format the remaining details
-    to_doc(details_without_exception, opts)
-    |> nest(2)
-  end
-
-  # Handle nested error in details specially (retained from original inspect_details)
-  defp format_error_details(%{original_error: %Jido.Signal.Error{}} = details, opts) do
-    to_doc(Map.delete(details, :original_error), opts)
-    |> nest(2)
-  end
-
-  defp format_error_details(details, opts) do
-    to_doc(details, opts)
-    |> nest(2)
-  end
 end

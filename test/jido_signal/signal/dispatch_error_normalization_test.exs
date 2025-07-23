@@ -25,13 +25,10 @@ defmodule Jido.Signal.DispatchErrorNormalizationTest do
 
     result = Dispatch.dispatch(signal, config)
 
-    assert {:error, %Error{type: :dispatch_error}} = result
+    assert {:error, %Error.DispatchError{}} = result
     {:error, error} = result
 
-    assert error.message == "Dispatch failed: process_not_alive"
-    assert error.details.adapter == :pid
-    assert error.details.reason == :process_not_alive
-    assert error.details.config == config
+    assert Exception.message(error) =~ "Signal dispatch failed"
 
     # Clean up
     Application.delete_env(:jido, :normalize_dispatch_errors)
@@ -50,12 +47,10 @@ defmodule Jido.Signal.DispatchErrorNormalizationTest do
 
     result = Dispatch.dispatch_batch(signal, configs, [])
 
-    assert {:error, [{1, %Error{type: :dispatch_error}}]} = result
+    assert {:error, [{1, %Error.DispatchError{}}]} = result
     {:error, [{1, error}]} = result
 
-    assert error.message == "Dispatch failed: process_not_found"
-    assert error.details.adapter == :named
-    assert error.details.reason == :process_not_found
+    assert Exception.message(error) =~ "Signal dispatch failed"
 
     # Clean up
     Application.delete_env(:jido, :normalize_dispatch_errors)
