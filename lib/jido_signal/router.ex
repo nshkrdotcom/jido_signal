@@ -174,6 +174,8 @@ defmodule Jido.Signal.Router do
   alias Jido.Signal.Error
   alias Jido.Signal.Router.{Engine, Route, Validator}
 
+  @type t :: Jido.Signal.Router.Router.t()
+
   @type path :: String.t()
   @type match :: (Signal.t() -> boolean())
   @type priority :: non_neg_integer()
