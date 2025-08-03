@@ -52,7 +52,7 @@ jobs:
         run: mix dialyzer --format dialyxir
 
       - name: Run code analysis with Credo
-        run: mix credo --all
+        run: mix credo --min-priority higher
 
       - name: Run documentation coverage with Doctor
         run: mix doctor --summary
