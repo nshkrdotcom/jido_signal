@@ -127,7 +127,7 @@ defmodule Jido.Signal.MixProject do
           Jido.Signal.Journal.Adapters.InMemory,
           Jido.Signal.Journal.Persistence
         ],
-        "Serialization": [
+        Serialization: [
           Jido.Signal.Serialization.Config,
           Jido.Signal.Serialization.ErlangTermSerializer,
           Jido.Signal.Serialization.JsonDecoder,
