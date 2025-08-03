@@ -116,6 +116,8 @@ defmodule Jido.Signal.Dispatch.PubSub do
     try do
       Phoenix.PubSub.broadcast(target, topic, signal)
       :ok
+    rescue
+      ArgumentError -> {:error, :pubsub_not_found}
     catch
       :exit, {:noproc, _} -> {:error, :pubsub_not_found}
       :exit, reason -> {:error, reason}
@@ -123,10 +125,10 @@ defmodule Jido.Signal.Dispatch.PubSub do
   end
 
   # Private helper to validate the target PubSub server
-  defp validate_target(name) when is_atom(name), do: {:ok, name}
+  defp validate_target(name) when is_atom(name) and not is_nil(name), do: {:ok, name}
   defp validate_target(_), do: {:error, "target must be an atom"}
 
   # Private helper to validate the topic string
-  defp validate_topic(topic) when is_binary(topic), do: {:ok, topic}
+  defp validate_topic(topic) when is_binary(topic) and not is_nil(topic), do: {:ok, topic}
   defp validate_topic(_), do: {:error, "topic must be a string"}
 end

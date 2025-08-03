@@ -25,7 +25,7 @@ defmodule Jido.Signal.Topology do
     field(:metadata, map(), default: %{})
     field(:parent_id, String.t())
     field(:child_ids, MapSet.t(String.t()), default: MapSet.new())
-    field(:registered_at, DateTime.t(), default: DateTime.utc_now())
+    field(:registered_at, DateTime.t())
   end
 
   typedstruct do
@@ -77,7 +77,8 @@ defmodule Jido.Signal.Topology do
           pid: pid,
           name: Keyword.get(opts, :name),
           metadata: Keyword.get(opts, :metadata, %{}),
-          parent_id: parent_id
+          parent_id: parent_id,
+          registered_at: DateTime.utc_now()
         }
 
         # Update the topology
@@ -411,8 +412,9 @@ defmodule Jido.Signal.Topology do
       process = node.process
       name = process.name || process.id
 
-      # Print this node
-      IO.puts("#{prefix}├── #{name} (#{inspect(process.pid)})")
+      # Print this node to debug/info log instead of stdout
+      require Logger
+      Logger.debug("#{prefix}├── #{name} (#{inspect(process.pid)})")
 
       # Print children with increased indentation
       child_prefix = "#{prefix}│   "

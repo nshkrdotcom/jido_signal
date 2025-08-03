@@ -26,7 +26,7 @@ defmodule Jido.Signal.Journal do
   @spec new(module()) :: t()
   def new(adapter \\ Jido.Signal.Journal.Adapters.InMemory) do
     case adapter.init() do
-      {:ok, pid} when adapter == Jido.Signal.Journal.Adapters.ETS ->
+      {:ok, pid} ->
         %__MODULE__{adapter: adapter, adapter_pid: pid}
 
       :ok ->
@@ -226,7 +226,7 @@ defmodule Jido.Signal.Journal do
     call_adapter(journal, :put_signal, [signal])
   end
 
-  defp get_all_signals(%__MODULE__{adapter: Jido.Signal.Journal.Adapters.ETS} = journal) do
+  defp get_all_signals(%__MODULE__{adapter_pid: pid} = journal) when not is_nil(pid) do
     call_adapter(journal, :get_all_signals, [])
   end
 
@@ -239,11 +239,12 @@ defmodule Jido.Signal.Journal do
   end
 
   defp call_adapter(
-         %__MODULE__{adapter: Jido.Signal.Journal.Adapters.ETS, adapter_pid: pid} = _journal,
+         %__MODULE__{adapter: adapter, adapter_pid: pid} = _journal,
          function,
          args
-       ) do
-    apply(Jido.Signal.Journal.Adapters.ETS, function, args ++ [pid])
+       )
+       when not is_nil(pid) do
+    apply(adapter, function, args ++ [pid])
   end
 
   defp call_adapter(%__MODULE__{adapter: adapter} = _journal, function, args) do

@@ -19,7 +19,7 @@ defmodule Jido.Signal.Registry do
     field(:id, String.t(), enforce: true)
     field(:path, String.t(), enforce: true)
     field(:dispatch, term(), enforce: true)
-    field(:created_at, DateTime.t(), default: DateTime.utc_now())
+    field(:created_at, DateTime.t())
   end
 
   typedstruct do
@@ -62,7 +62,8 @@ defmodule Jido.Signal.Registry do
       subscription = %Subscription{
         id: id,
         path: path,
-        dispatch: dispatch
+        dispatch: dispatch,
+        created_at: DateTime.utc_now()
       }
 
       subscriptions = Map.put(registry.subscriptions, id, subscription)

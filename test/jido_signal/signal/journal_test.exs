@@ -5,12 +5,13 @@ defmodule Jido.Signal.JournalTest do
 
   setup do
     on_exit(fn ->
-      # Clean up any ETS adapter state
+      # Clean up any adapter state
       if journal = Process.get(:current_journal) do
-        if journal.adapter == Jido.Signal.Journal.Adapters.ETS and
-             is_pid(journal.adapter_pid) and
-             Process.alive?(journal.adapter_pid) do
-          Jido.Signal.Journal.Adapters.ETS.cleanup(journal.adapter_pid)
+        if is_pid(journal.adapter_pid) and Process.alive?(journal.adapter_pid) do
+          if journal.adapter == Jido.Signal.Journal.Adapters.ETS do
+            Jido.Signal.Journal.Adapters.ETS.cleanup(journal.adapter_pid)
+          end
+
           Process.exit(journal.adapter_pid, :normal)
         end
 
