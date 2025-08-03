@@ -164,7 +164,7 @@ defmodule Jido.Signal.MixProject do
 
   def package do
     [
-      files: ["lib", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"],
+      files: ["lib", "mix.exs", "README*", "LICENSE*", "CHANGELOG*", "usage-rules.md"],
       maintainers: ["Mike Hostetler"],
       licenses: ["Apache-2.0"],
       links: %{
