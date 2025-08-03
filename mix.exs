@@ -30,7 +30,7 @@ defmodule Jido.Signal.MixProject do
       # Coverage
       test_coverage: [
         tool: ExCoveralls,
-        summary: [threshold: 80],
+        summary: [threshold: 90],
         export: "cov",
         ignore_modules: [~r/^JidoTest\./]
       ],
@@ -65,25 +65,20 @@ defmodule Jido.Signal.MixProject do
         "CONTRIBUTING.md",
         "LICENSE.md",
         "guides/getting-started.md",
-        "guides/introduction/what-is-jido-signal.md",
-        "guides/introduction/core-components.md",
-        "guides/introduction/when-to-use.md",
-        "guides/core-concepts/signal-structure.md",
-        "guides/core-concepts/signal-bus.md",
-        "guides/core-concepts/router.md",
-        "guides/core-concepts/dispatch-system.md"
+        "guides/signals-and-dispatch.md",
+        "guides/signal-router.md",
+        "guides/event-bus.md",
+        "guides/advanced.md"
       ],
       groups_for_extras: [
-        Introduction: ~r/guides\/introduction\/.*/,
-        "Getting Started": ~r/guides\/getting-started.*/,
-        "Core Concepts": ~r/guides\/core-concepts\/.*/
+        Guides: ~r/guides\/.*/
       ]
     ]
   end
 
   def package do
     [
-      files: ["lib", "mix.exs", "README*", "LICENSE*"],
+      files: ["lib", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"],
       maintainers: ["Mike Hostetler"],
       licenses: ["Apache-2.0"],
       links: %{
@@ -119,6 +114,7 @@ defmodule Jido.Signal.MixProject do
       {:expublish, "~> 2.7", only: [:dev], runtime: false},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
       {:mimic, "~> 2.0", only: :test},
+      {:quokka, "~> 2.10", only: [:dev, :test], runtime: false},
       {:stream_data, "~> 1.0", only: [:dev, :test]}
     ]
   end
