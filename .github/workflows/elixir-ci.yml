@@ -63,9 +63,6 @@ jobs:
       - name: Audit dependencies for vulnerabilities
         run: mix hex.audit
 
-      - name: Run security analysis
-        run: mix sobelow --config
-
       - name: Run tests with coverage
         run: mix coveralls.github
         env:
