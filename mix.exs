@@ -68,10 +68,96 @@ defmodule Jido.Signal.MixProject do
         "guides/signals-and-dispatch.md",
         "guides/signal-router.md",
         "guides/event-bus.md",
+        "guides/signal-journal.md",
+        "guides/serialization.md",
         "guides/advanced.md"
       ],
       groups_for_extras: [
         Guides: ~r/guides\/.*/
+      ],
+      groups_for_modules: [
+        "Core Signal": [
+          Jido.Signal,
+          Jido.Signal.Error,
+          Jido.Signal.ID,
+          Jido.Signal.Util
+        ],
+        "Signal Routing": [
+          Jido.Signal.Router,
+          Jido.Signal.Router.Engine,
+          Jido.Signal.Router.HandlerInfo,
+          Jido.Signal.Router.Inspect,
+          Jido.Signal.Router.NodeHandlers,
+          Jido.Signal.Router.PatternMatch,
+          Jido.Signal.Router.Route,
+          Jido.Signal.Router.Router,
+          Jido.Signal.Router.TrieNode,
+          Jido.Signal.Router.Validator,
+          Jido.Signal.Router.WildcardHandlers
+        ],
+        "Event Bus": [
+          Jido.Signal.Bus,
+          Jido.Signal.Bus.Middleware,
+          Jido.Signal.Bus.MiddlewarePipeline,
+          Jido.Signal.Bus.PersistentSubscription,
+          Jido.Signal.Bus.RecordedSignal,
+          Jido.Signal.Bus.Snapshot,
+          Jido.Signal.Bus.Snapshot.SnapshotData,
+          Jido.Signal.Bus.Snapshot.SnapshotRef,
+          Jido.Signal.Bus.State,
+          Jido.Signal.Bus.Stream,
+          Jido.Signal.Bus.Subscriber,
+          Jido.Signal.Bus.Middleware.Logger
+        ],
+        "Signal Dispatch": [
+          Jido.Signal.Dispatch,
+          Jido.Signal.Dispatch.Adapter,
+          Jido.Signal.Dispatch.ConsoleAdapter,
+          Jido.Signal.Dispatch.Http,
+          Jido.Signal.Dispatch.LoggerAdapter,
+          Jido.Signal.Dispatch.Named,
+          Jido.Signal.Dispatch.NoopAdapter,
+          Jido.Signal.Dispatch.PidAdapter,
+          Jido.Signal.Dispatch.PubSub,
+          Jido.Signal.Dispatch.Webhook
+        ],
+        "Signal Journal": [
+          Jido.Signal.Journal,
+          Jido.Signal.Journal.Adapters.ETS,
+          Jido.Signal.Journal.Adapters.InMemory,
+          Jido.Signal.Journal.Persistence
+        ],
+        "Serialization": [
+          Jido.Signal.Serialization.Config,
+          Jido.Signal.Serialization.ErlangTermSerializer,
+          Jido.Signal.Serialization.JsonDecoder,
+          Jido.Signal.Serialization.JsonSerializer,
+          Jido.Signal.Serialization.ModuleNameTypeProvider,
+          Jido.Signal.Serialization.MsgpackSerializer,
+          Jido.Signal.Serialization.Serializer,
+          Jido.Signal.Serialization.TypeProvider
+        ],
+        "System Infrastructure": [
+          Jido.Signal.Application,
+          Jido.Signal.Registry,
+          Jido.Signal.Registry.Subscription,
+          Jido.Signal.Topology,
+          Jido.Signal.Topology.ProcessNode
+        ],
+        "Errors & Exceptions": [
+          Jido.Signal.Error.DispatchError,
+          Jido.Signal.Error.Execution,
+          Jido.Signal.Error.ExecutionFailureError,
+          Jido.Signal.Error.Internal,
+          Jido.Signal.Error.Internal.UnknownError,
+          Jido.Signal.Error.InternalError,
+          Jido.Signal.Error.Invalid,
+          Jido.Signal.Error.InvalidInputError,
+          Jido.Signal.Error.Routing,
+          Jido.Signal.Error.RoutingError,
+          Jido.Signal.Error.Timeout,
+          Jido.Signal.Error.TimeoutError
+        ]
       ]
     ]
   end
