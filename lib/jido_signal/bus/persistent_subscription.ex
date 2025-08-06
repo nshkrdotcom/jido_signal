@@ -8,11 +8,13 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
   """
   use GenServer
   use TypedStruct
-  require Logger
   use ExDbug, enabled: false
+
   alias Jido.Signal.Bus.Subscriber
   alias Jido.Signal.Dispatch
   alias Jido.Signal.ID
+
+  require Logger
 
   typedstruct do
     field(:id, String.t(), enforce: true)

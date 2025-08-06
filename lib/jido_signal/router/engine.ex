@@ -186,7 +186,7 @@ defmodule Jido.Signal.Router.Engine do
   defp merge_sorted([], list2), do: list2
   defp merge_sorted(list1, []), do: list1
 
-  defp merge_sorted([x = {_t1, p1, c1} | xs], [y = {_t2, p2, c2} | ys]) do
+  defp merge_sorted([{_t1, p1, c1} = x | xs], [{_t2, p2, c2} = y | ys]) do
     cond do
       c1 > c2 ->
         [x | merge_sorted(xs, [y | ys])]
@@ -360,7 +360,7 @@ defmodule Jido.Signal.Router.Engine do
                   [handler_info]
               end
 
-            %TrieNode{
+            %{
               node
               | handlers: %NodeHandlers{
                   handlers:
@@ -405,7 +405,7 @@ defmodule Jido.Signal.Router.Engine do
           segment,
           %TrieNode{handlers: %NodeHandlers{matchers: [matcher]}},
           fn node ->
-            %TrieNode{
+            %{
               node
               | handlers: %NodeHandlers{
                   handlers: node.handlers.handlers,
@@ -440,7 +440,7 @@ defmodule Jido.Signal.Router.Engine do
   defp do_remove_path([segment], %TrieNode{segments: segments} = trie) do
     # Remove the leaf node
     new_segments = Map.delete(segments, segment)
-    %TrieNode{trie | segments: new_segments}
+    %{trie | segments: new_segments}
   end
 
   defp do_remove_path([segment | rest], %TrieNode{segments: segments} = trie) do
@@ -452,9 +452,9 @@ defmodule Jido.Signal.Router.Engine do
         new_node = do_remove_path(rest, node)
         # If the node is empty after removal, remove it too
         if map_size(new_node.segments) == 0 do
-          %TrieNode{trie | segments: Map.delete(segments, segment)}
+          %{trie | segments: Map.delete(segments, segment)}
         else
-          %TrieNode{trie | segments: Map.put(segments, segment, new_node)}
+          %{trie | segments: Map.put(segments, segment, new_node)}
         end
     end
   end
@@ -464,7 +464,8 @@ defmodule Jido.Signal.Router.Engine do
     # Add any handlers at current node
     acc =
       case handlers do
-        %NodeHandlers{handlers: handlers} when is_list(handlers) and length(handlers) > 0 ->
+        %NodeHandlers{handlers: handlers}
+        when is_list(handlers) and (is_list(handlers) and handlers != []) ->
           # Preserve order by not reversing here
           Enum.map(handlers, fn %HandlerInfo{
                                   target: target,
@@ -477,7 +478,8 @@ defmodule Jido.Signal.Router.Engine do
             }
           end) ++ acc
 
-        %NodeHandlers{matchers: matchers} when is_list(matchers) and length(matchers) > 0 ->
+        %NodeHandlers{matchers: matchers}
+        when is_list(matchers) and (is_list(matchers) and matchers != []) ->
           # Preserve order by not reversing here
           Enum.map(matchers, fn %PatternMatch{
                                   target: target,

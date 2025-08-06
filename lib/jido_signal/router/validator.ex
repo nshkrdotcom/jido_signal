@@ -291,28 +291,26 @@ defmodule Jido.Signal.Router.Validator do
   end
 
   def validate_match(match_fn) when is_function(match_fn, 1) do
-    try do
-      test_signal = %Signal{
-        type: "",
-        source: "",
-        id: "",
-        data: %{
-          amount: 0,
-          currency: "USD"
-        }
+    test_signal = %Signal{
+      type: "",
+      source: "",
+      id: "",
+      data: %{
+        amount: 0,
+        currency: "USD"
       }
+    }
 
-      case match_fn.(test_signal) do
-        result when is_boolean(result) ->
-          {:ok, match_fn}
+    case match_fn.(test_signal) do
+      result when is_boolean(result) ->
+        {:ok, match_fn}
 
-        _other ->
-          {:error, Error.routing_error("Match function must return a boolean")}
-      end
-    rescue
-      _error ->
-        {:error, Error.routing_error("Match function raised an error during validation")}
+      _other ->
+        {:error, Error.routing_error("Match function must return a boolean")}
     end
+  rescue
+    _error ->
+      {:error, Error.routing_error("Match function raised an error during validation")}
   end
 
   def validate_match(_invalid) do

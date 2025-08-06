@@ -1,15 +1,17 @@
 defmodule Jido.Signal.BusMultiBusE2ETest do
   use ExUnit.Case, async: true
-  require Logger
 
   alias Jido.Signal
   alias Jido.Signal.Bus
+
+  require Logger
 
   @moduletag :capture_log
   @moduletag timeout: 30_000
 
   defmodule MultiTestClient do
     use GenServer
+
     require Logger
 
     def start_link(opts) do
@@ -103,7 +105,7 @@ defmodule Jido.Signal.BusMultiBusE2ETest do
       # Tag the signal with bus name in jido_dispatch metadata
       tagged_signal = %{
         signal
-        | jido_dispatch: Map.merge(signal.jido_dispatch || %{}, %{bus_name: state.bus_name})
+        | jido_dispatch: Map.put(signal.jido_dispatch || %{}, :bus_name, state.bus_name)
       }
 
       {:cont, tagged_signal, state}

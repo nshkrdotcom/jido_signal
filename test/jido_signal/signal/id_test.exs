@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.IDTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal.ID
 
   describe "generate/0" do

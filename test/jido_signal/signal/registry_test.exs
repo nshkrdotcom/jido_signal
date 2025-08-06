@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.RegistryTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal.Registry
   alias Jido.Signal.Registry.Subscription
 

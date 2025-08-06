@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.TopologyTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal.Topology
   alias Jido.Signal.Topology.ProcessNode
 

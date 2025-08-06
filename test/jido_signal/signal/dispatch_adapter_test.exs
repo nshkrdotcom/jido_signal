@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.Dispatch.AdapterTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
   alias Jido.Signal.Dispatch.Adapter
 

@@ -49,6 +49,7 @@ defmodule Jido.Signal.Dispatch.Http do
   """
 
   @behaviour Jido.Signal.Dispatch.Adapter
+
   require Logger
 
   @default_timeout 5000

@@ -1,5 +1,6 @@
 defmodule Jido.Signal.Bus.SnapshotTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
   alias Jido.Signal.Bus.Snapshot
   alias Jido.Signal.Bus.State, as: BusState
@@ -158,7 +159,7 @@ defmodule Jido.Signal.Bus.SnapshotTest do
       [first, second] = snapshot_refs
       assert first.id == snapshot_ref2.id
       assert second.id == snapshot_ref1.id
-      assert DateTime.compare(first.created_at, second.created_at) == :gt
+      assert DateTime.after?(first.created_at, second.created_at)
     end
   end
 
@@ -347,7 +348,7 @@ defmodule Jido.Signal.Bus.SnapshotTest do
       # Clean up snapshots older than the cutoff time
       {:ok, new_state} =
         Snapshot.cleanup(state, fn ref ->
-          DateTime.compare(ref.created_at, cutoff_time) == :lt
+          DateTime.before?(ref.created_at, cutoff_time)
         end)
 
       # Verify only older snapshots are removed

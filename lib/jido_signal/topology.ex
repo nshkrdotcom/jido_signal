@@ -327,8 +327,7 @@ defmodule Jido.Signal.Topology do
     topology.processes
     |> Enum.map(fn {id, _} -> {id, get_state(topology, id)} end)
     |> Enum.filter(fn {_, result} -> match?({:ok, _}, result) end)
-    |> Enum.map(fn {id, {:ok, state}} -> {id, state} end)
-    |> Map.new()
+    |> Map.new(fn {id, {:ok, state}} -> {id, state} end)
   end
 
   @doc """
@@ -344,8 +343,7 @@ defmodule Jido.Signal.Topology do
     descendants
     |> Enum.map(fn process -> {process.id, get_state(topology, process.id)} end)
     |> Enum.filter(fn {_, result} -> match?({:ok, _}, result) end)
-    |> Enum.map(fn {id, {:ok, state}} -> {id, state} end)
-    |> Map.new()
+    |> Map.new(fn {id, {:ok, state}} -> {id, state} end)
   end
 
   @doc """
@@ -409,11 +407,12 @@ defmodule Jido.Signal.Topology do
 
   defp print_tree(tree, prefix \\ "") do
     Enum.each(tree, fn node ->
+      require Logger
+
       process = node.process
       name = process.name || process.id
 
       # Print this node to debug/info log instead of stdout
-      require Logger
       Logger.debug("#{prefix}├── #{name} (#{inspect(process.pid)})")
 
       # Print children with increased indentation

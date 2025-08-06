@@ -1,3 +1,4 @@
+require Logger
 # Prepare modules for Mimic
 Enum.each(
   [
@@ -8,7 +9,6 @@ Enum.each(
 )
 
 # Suite requires debug level for all tests
-require Logger
 Logger.configure(level: :debug)
 
 ExUnit.start()

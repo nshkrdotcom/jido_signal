@@ -1,10 +1,11 @@
 defmodule JidoTest.Signal.Bus.Middleware.Logger do
   use ExUnit.Case, async: false
+
+  import ExUnit.CaptureLog
+
   alias Jido.Signal
   alias Jido.Signal.Bus.Middleware.Logger, as: LoggerMiddleware
   alias Jido.Signal.Bus.Subscriber
-
-  import ExUnit.CaptureLog
 
   @moduletag :capture_log
 

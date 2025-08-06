@@ -145,7 +145,7 @@ defmodule Jido.Signal.Serialization.MsgpackSerializerTest do
     end
 
     test "handles large data structures" do
-      large_map = 1..1000 |> Enum.into(%{}, fn i -> {i, "value_#{i}"} end)
+      large_map = 1..1000 |> Map.new(fn i -> {i, "value_#{i}"} end)
 
       {:ok, serialized} = MsgpackSerializer.serialize(large_map)
       {:ok, deserialized} = MsgpackSerializer.deserialize(serialized)

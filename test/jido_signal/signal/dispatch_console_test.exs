@@ -1,6 +1,8 @@
 defmodule JidoTest.Signal.Dispatch.ConsoleAdapterTest do
   use ExUnit.Case, async: true
+
   import ExUnit.CaptureIO
+
   alias Jido.Signal
   alias Jido.Signal.Dispatch.ConsoleAdapter
 

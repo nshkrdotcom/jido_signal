@@ -32,8 +32,17 @@ defmodule Jido.Signal.Error do
       # Convert any value to a proper error
       {:error, normalized} = Jido.Signal.Error.to_error("Signal processing failed")
   """
+  use Splode,
+    # Error class modules for Splode
+    error_classes: [
+      invalid: Invalid,
+      execution: Execution,
+      routing: Routing,
+      timeout: Timeout,
+      internal: Internal
+    ],
+    unknown_error: Jido.Signal.Error.Internal.UnknownError
 
-  # Error class modules for Splode
   defmodule Invalid do
     @moduledoc "Invalid input error class"
     use Splode.ErrorClass, class: :invalid
@@ -71,16 +80,6 @@ defmodule Jido.Signal.Error do
       end
     end
   end
-
-  use Splode,
-    error_classes: [
-      invalid: Invalid,
-      execution: Execution,
-      routing: Routing,
-      timeout: Timeout,
-      internal: Internal
-    ],
-    unknown_error: Internal.UnknownError
 
   # Define specific error structs inline
   defmodule InvalidInputError do

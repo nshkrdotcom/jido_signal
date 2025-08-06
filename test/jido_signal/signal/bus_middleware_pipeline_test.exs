@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.Bus.MiddlewarePipeline do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
   alias Jido.Signal.Bus.MiddlewarePipeline
   alias Jido.Signal.Bus.Subscriber

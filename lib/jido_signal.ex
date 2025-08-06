@@ -138,9 +138,11 @@ defmodule Jido.Signal do
   - `Jido.Signal.Dispatch` - Dispatch handling
   - CloudEvents spec: https://cloudevents.io/
   """
+  use TypedStruct
+
   alias Jido.Signal.Dispatch
   alias Jido.Signal.ID
-  use TypedStruct
+  alias Jido.Signal.Serialization.TypeProvider
 
   @signal_config_schema NimbleOptions.new!(
                           type: [
@@ -275,8 +277,6 @@ defmodule Jido.Signal do
             with {:ok, validated_data} <- validate_data(data),
                  {:ok, signal_attrs} <- build_signal_attrs(validated_data, opts) do
               Signal.from_map(signal_attrs)
-            else
-              {:error, reason} -> {:error, reason}
             end
           end
 
@@ -556,8 +556,6 @@ defmodule Jido.Signal do
   def map_to_signal_data(signals, fields) when is_list(signals) do
     Enum.map(signals, &map_to_signal_data(&1, fields))
   end
-
-  alias Jido.Signal.Serialization.TypeProvider
 
   @spec map_to_signal_data(struct, Keyword.t()) :: t()
   def map_to_signal_data(signal, _fields) do

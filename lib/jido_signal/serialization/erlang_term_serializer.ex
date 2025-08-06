@@ -75,12 +75,10 @@ defmodule Jido.Signal.Serialization.ErlangTermSerializer do
   """
   @spec valid_erlang_term?(binary()) :: boolean()
   def valid_erlang_term?(binary) when is_binary(binary) do
-    try do
-      :erlang.binary_to_term(binary, [:safe])
-      true
-    rescue
-      _ -> false
-    end
+    :erlang.binary_to_term(binary, [:safe])
+    true
+  rescue
+    _ -> false
   end
 
   def valid_erlang_term?(_), do: false

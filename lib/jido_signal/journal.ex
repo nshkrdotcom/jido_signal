@@ -5,6 +5,7 @@ defmodule Jido.Signal.Journal do
   temporal ordering and causal relationships.
   """
   use TypedStruct
+
   alias Jido.Signal
 
   typedstruct do
@@ -238,11 +239,7 @@ defmodule Jido.Signal.Journal do
     apply(Jido.Signal.Journal.Adapters.ETS, function, args ++ [pid])
   end
 
-  defp call_adapter(
-         %__MODULE__{adapter: adapter, adapter_pid: pid} = _journal,
-         function,
-         args
-       )
+  defp call_adapter(%__MODULE__{adapter: adapter, adapter_pid: pid} = _journal, function, args)
        when not is_nil(pid) do
     apply(adapter, function, args ++ [pid])
   end

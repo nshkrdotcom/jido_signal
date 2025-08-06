@@ -1,5 +1,6 @@
 defmodule JidoTest.SignalTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
 
   describe "new/1" do

@@ -72,6 +72,7 @@ defmodule Jido.Signal.Dispatch.Webhook do
   """
 
   @behaviour Jido.Signal.Dispatch.Adapter
+
   require Logger
 
   @default_signature_header "x-webhook-signature"

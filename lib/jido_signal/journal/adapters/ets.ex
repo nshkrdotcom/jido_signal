@@ -16,6 +16,7 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
     - :my_journal_conversations
   """
   @behaviour Jido.Signal.Journal.Persistence
+
   use GenServer
 
   defstruct [:signals_table, :causes_table, :effects_table, :conversations_table]

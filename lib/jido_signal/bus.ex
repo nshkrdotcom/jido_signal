@@ -10,15 +10,17 @@ defmodule Jido.Signal.Bus do
   """
 
   use GenServer
-  require Logger
   use ExDbug, enabled: false
   use TypedStruct
+
   alias Jido.Signal.Bus.MiddlewarePipeline
   alias Jido.Signal.Bus.Snapshot
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Stream
   alias Jido.Signal.Error
   alias Jido.Signal.Router
+
+  require Logger
 
   @type start_option ::
           {:name, atom()}

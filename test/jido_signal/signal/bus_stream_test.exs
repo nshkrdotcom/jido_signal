@@ -1,5 +1,6 @@
 defmodule Jido.Signal.Bus.StreamTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Stream

@@ -94,7 +94,7 @@ if Code.ensure_loaded?(Msgpax) do
       base_map = if is_struct(data), do: Map.from_struct(data), else: data
 
       base_map
-      |> Enum.into(%{}, fn {k, v} ->
+      |> Map.new(fn {k, v} ->
         {preprocess_for_msgpack(k), preprocess_for_msgpack(v)}
       end)
     end
@@ -126,7 +126,7 @@ if Code.ensure_loaded?(Msgpax) do
 
     defp postprocess_from_msgpack(data) when is_map(data) do
       data
-      |> Enum.into(%{}, fn {k, v} ->
+      |> Map.new(fn {k, v} ->
         {postprocess_from_msgpack(k), postprocess_from_msgpack(v)}
       end)
     end

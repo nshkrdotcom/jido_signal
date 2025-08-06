@@ -3,6 +3,7 @@ defmodule Jido.Signal.RouterTest do
 
   alias Jido.Signal
   alias Jido.Signal.Router
+
   @moduletag :capture_log
 
   setup do

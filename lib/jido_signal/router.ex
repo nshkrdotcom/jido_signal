@@ -317,7 +317,7 @@ defmodule Jido.Signal.Router do
     with {:ok, normalized} <- Validator.normalize(routes),
          {:ok, validated} <- validate(normalized) do
       new_trie = Engine.build_trie(validated, router.trie)
-      {:ok, %Router{router | trie: new_trie, route_count: router.route_count + length(validated)}}
+      {:ok, %{router | trie: new_trie, route_count: router.route_count + length(validated)}}
     end
   end
 
@@ -344,7 +344,7 @@ defmodule Jido.Signal.Router do
   def remove(%Router{} = router, paths) when is_list(paths) do
     new_trie = Enum.reduce(paths, router.trie, &Engine.remove_path/2)
     route_count = Engine.count_routes(new_trie)
-    {:ok, %Router{router | trie: new_trie, route_count: route_count}}
+    {:ok, %{router | trie: new_trie, route_count: route_count}}
   end
 
   def remove(%Router{} = router, path) when is_binary(path) do
@@ -581,10 +581,10 @@ defmodule Jido.Signal.Router do
       type_segments = String.split(type, ".")
 
       # Single wildcard must match exact number of segments
-      if length(pattern_segments) != length(type_segments) do
-        false
-      else
+      if length(pattern_segments) == length(type_segments) do
         do_matches?(type, pattern)
+      else
+        false
       end
     else
       # For multi-level wildcards, handle empty segments

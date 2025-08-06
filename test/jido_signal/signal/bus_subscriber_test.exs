@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.Bus.SubscriberTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Subscriber
 

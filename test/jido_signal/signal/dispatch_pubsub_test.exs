@@ -1,5 +1,6 @@
 defmodule JidoTest.Signal.Dispatch.PubSubTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
   alias Jido.Signal.Dispatch.PubSub
 

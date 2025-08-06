@@ -13,7 +13,7 @@ defimpl Inspect, for: Jido.Signal.Router.Router do
         # Format each route as a simplified string
         formatted_routes =
           Enum.map(routes, fn route ->
-            priority_str = if route.priority != 0, do: " (priority: #{route.priority})", else: ""
+            priority_str = if route.priority == 0, do: "", else: " (priority: #{route.priority})"
             matcher_str = if route.match, do: " [with matcher]", else: ""
 
             # Format the target more concisely

@@ -1,5 +1,6 @@
 defmodule Jido.Signal.Journal.Adapters.ETSTest do
   use ExUnit.Case, async: true
+
   alias Jido.Signal
   alias Jido.Signal.Journal.Adapters.ETS
 

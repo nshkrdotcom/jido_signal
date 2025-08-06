@@ -6,6 +6,8 @@ defmodule Jido.Signal.Bus.RecordedSignal do
   """
   use TypedStruct
 
+  alias Jido.Signal.Serialization.JsonSerializer
+
   @derive {Jason.Encoder, only: [:id, :type, :created_at, :signal]}
 
   typedstruct do
@@ -16,8 +18,6 @@ defmodule Jido.Signal.Bus.RecordedSignal do
     field(:created_at, DateTime.t(), enforce: true)
     field(:signal, Jido.Signal.t(), enforce: true)
   end
-
-  alias Jido.Signal.Serialization.JsonSerializer
 
   @doc """
   Serializes a RecordedSignal or a list of RecordedSignals to JSON string.
@@ -83,22 +83,20 @@ defmodule Jido.Signal.Bus.RecordedSignal do
   """
   @spec deserialize(binary()) :: {:ok, t() | list(t())} | {:error, term()}
   def deserialize(json) when is_binary(json) do
-    try do
-      decoded = Jason.decode!(json)
+    decoded = Jason.decode!(json)
 
-      result =
-        if is_list(decoded) do
-          # Handle array of RecordedSignals
-          Enum.map(decoded, &deserialize_single/1)
-        else
-          # Handle single RecordedSignal
-          deserialize_single(decoded)
-        end
+    result =
+      if is_list(decoded) do
+        # Handle array of RecordedSignals
+        Enum.map(decoded, &deserialize_single/1)
+      else
+        # Handle single RecordedSignal
+        deserialize_single(decoded)
+      end
 
-      {:ok, result}
-    rescue
-      e -> {:error, Exception.message(e)}
-    end
+    {:ok, result}
+  rescue
+    e -> {:error, Exception.message(e)}
   end
 
   # Private helper to deserialize a single RecordedSignal map

@@ -1,5 +1,6 @@
 defmodule Jido.SignalSerializationTest do
   use ExUnit.Case, async: false
+
   alias Jido.Signal
 
   describe "Signal.serialize/1" do

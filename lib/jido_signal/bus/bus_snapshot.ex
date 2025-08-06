@@ -40,9 +40,11 @@ defmodule Jido.Signal.Bus.Snapshot do
   """
   use TypedStruct
   use ExDbug, enabled: false
+
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Stream
   alias Jido.Signal.ID
+
   require Logger
 
   typedstruct module: SnapshotRef do
@@ -320,11 +322,9 @@ defmodule Jido.Signal.Bus.Snapshot do
 
   @spec get_snapshot_data(String.t()) :: {:ok, SnapshotData.t()} | :error
   defp get_snapshot_data(snapshot_id) do
-    try do
-      data = :persistent_term.get({__MODULE__, snapshot_id})
-      {:ok, data}
-    rescue
-      ArgumentError -> :error
-    end
+    data = :persistent_term.get({__MODULE__, snapshot_id})
+    {:ok, data}
+  rescue
+    ArgumentError -> :error
   end
 end

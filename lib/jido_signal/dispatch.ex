@@ -1,6 +1,4 @@
 defmodule Jido.Signal.Dispatch do
-  alias Jido.Signal.Error
-
   @moduledoc """
   A flexible signal dispatching system that routes signals to various destinations using configurable adapters.
 
@@ -70,6 +68,8 @@ defmodule Jido.Signal.Dispatch do
       ]}
       :ok = Dispatch.dispatch(signal, config)
   """
+
+  alias Jido.Signal.Error
 
   @type adapter ::
           :pid
@@ -147,7 +147,7 @@ defmodule Jido.Signal.Dispatch do
   """
   @spec validate_opts(dispatch_configs()) :: {:ok, dispatch_configs()} | {:error, term()}
   # Handle single dispatcher config
-  def validate_opts(config = {adapter, opts}) when is_atom(adapter) and is_list(opts) do
+  def validate_opts({adapter, opts} = config) when is_atom(adapter) and is_list(opts) do
     validate_single_config(config)
   end
 
@@ -202,7 +202,7 @@ defmodule Jido.Signal.Dispatch do
   """
   @spec dispatch(Jido.Signal.t(), dispatch_configs()) :: :ok | {:error, term()}
   # Handle single dispatcher
-  def dispatch(signal, config = {adapter, opts}) when is_atom(adapter) and is_list(opts) do
+  def dispatch(signal, {adapter, opts} = config) when is_atom(adapter) and is_list(opts) do
     dispatch_single(signal, config)
   end
 
@@ -326,7 +326,9 @@ defmodule Jido.Signal.Dispatch do
   end
 
   defp process_batches(signal, validated_configs_with_idx, batch_size, max_concurrency) do
-    if validated_configs_with_idx != [] do
+    if validated_configs_with_idx == [] do
+      []
+    else
       batches = Enum.chunk_every(validated_configs_with_idx, batch_size)
 
       Task.Supervisor.async_stream(
@@ -344,8 +346,6 @@ defmodule Jido.Signal.Dispatch do
         ordered: true
       )
       |> Enum.flat_map(fn {:ok, batch_results} -> batch_results end)
-    else
-      []
     end
   end
 
@@ -482,7 +482,7 @@ defmodule Jido.Signal.Dispatch do
     success = match?(:ok, result)
 
     measurements = %{latency_ms: latency_ms}
-    metadata = Map.merge(metadata, %{success?: success})
+    metadata = Map.put(metadata, :success?, success)
 
     if success do
       :telemetry.execute([:jido, :dispatch, :stop], measurements, metadata)

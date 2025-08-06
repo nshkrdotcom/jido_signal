@@ -61,6 +61,7 @@ defmodule Jido.Signal.Dispatch.LoggerAdapter do
   """
 
   @behaviour Jido.Signal.Dispatch.Adapter
+
   require Logger
 
   @valid_levels [:debug, :info, :warning, :error]

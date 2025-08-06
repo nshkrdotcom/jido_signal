@@ -1,9 +1,10 @@
 defmodule Jido.Signal.BusE2ETest do
   use ExUnit.Case, async: true
-  require Logger
 
   alias Jido.Signal
   alias Jido.Signal.Bus
+
+  require Logger
 
   @moduletag :capture_log
   # Increase timeout for this long-running test
@@ -11,6 +12,7 @@ defmodule Jido.Signal.BusE2ETest do
 
   defmodule TestClient do
     use GenServer
+
     require Logger
 
     def start_link(opts) do
