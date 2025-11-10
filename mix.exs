@@ -33,7 +33,12 @@ defmodule Jido.Signal.MixProject do
         summary: [threshold: 90],
         export: "cov",
         ignore_modules: [~r/^JidoTest\./]
-      ],
+      ]
+    ]
+  end
+
+  def cli do
+    [
       preferred_cli_env: [
         coveralls: :test,
         "coveralls.github": :test,
