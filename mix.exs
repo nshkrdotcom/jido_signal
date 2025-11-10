@@ -39,7 +39,7 @@ defmodule Jido.Signal.MixProject do
 
   def cli do
     [
-      preferred_cli_env: [
+      preferred_envs: [
         coveralls: :test,
         "coveralls.github": :test,
         "coveralls.lcov": :test,
