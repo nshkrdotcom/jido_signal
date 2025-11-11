@@ -246,24 +246,30 @@ defmodule Jido.Signal.Router.Engine do
         matching_handlers
 
       %TrieNode{} = node ->
+        # Collect handlers from ** node first
         handlers = collect_handlers(node.handlers, signal, matching_handlers)
-
-        # Try all possible remaining segment combinations
-        [rest, []]
-        |> Stream.concat(tails(rest))
-        |> Enum.reduce(handlers, fn remaining, acc ->
-          if remaining == [] do
-            acc
-          else
-            do_route(remaining, node, signal, acc)
-          end
-        end)
+        # Iteratively try matching by consuming 0, 1, 2, ... segments
+        do_route_multi_wildcard(node, rest, signal, handlers)
     end
   end
 
-  # Helper to get all possible tails of a list
-  defp tails([]), do: []
-  defp tails([_h | t]), do: [t | tails(t)]
+  # Iteratively match zero or more segments for ** wildcard
+  # Preserves exact same traversal order as tails/1 approach
+  @spec do_route_multi_wildcard(TrieNode.t(), [String.t()], Signal.t(), [HandlerInfo.t()]) ::
+          [HandlerInfo.t()]
+  defp do_route_multi_wildcard(node, segments, signal, acc) do
+    # Try matching remaining path (zero-length ** match)
+    acc = do_route(segments, node, signal, acc)
+
+    # Try dropping one segment at a time (greedy ** matching)
+    case segments do
+      [] ->
+        acc
+
+      [_ | tail] ->
+        do_route_multi_wildcard(node, tail, signal, acc)
+    end
+  end
 
   # Handler collection logic
   defp collect_handlers(%NodeHandlers{} = node_handlers, %Signal{} = signal, acc) do
