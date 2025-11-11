@@ -605,37 +605,65 @@ defmodule Jido.Signal.Router do
     end
   end
 
-  defp do_matches?(type, pattern) do
-    # Create a test signal with required fields
-    test_signal = %Signal{
-      type: type,
-      source: "/test",
-      id: Jido.Signal.ID.generate!(),
-      specversion: "1.0.2",
-      data: %{}
-    }
+  # Fast segment-based pattern matching (no trie build required)
+  @spec match_segments?(String.t(), String.t()) :: boolean()
+  defp match_segments?(type, pattern) do
+    type_segments = String.split(type, ".")
+    pattern_segments = String.split(pattern, ".")
 
-    # Create a test route with a dummy target
-    test_route = %Route{
-      path: pattern,
-      target: {:noop, []},
-      priority: 0
-    }
+    do_match_segments(type_segments, pattern_segments, 0, 0, nil, nil)
+  end
 
-    # Validate the pattern first
-    case Validator.validate_path(pattern) do
-      {:ok, _} ->
-        # Build a trie with just this route
-        trie = Engine.build_trie([test_route])
+  # Two-pointer matcher with backtracking for **
+  # Algorithm: https://leetcode.com/problems/wildcard-matching/
+  @spec do_match_segments(
+          [String.t()],
+          [String.t()],
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer() | nil,
+          non_neg_integer() | nil
+        ) :: boolean()
+  defp do_match_segments(type_segs, pattern_segs, i, j, star_i, star_j) do
+    type_len = length(type_segs)
+    pattern_len = length(pattern_segs)
 
-        # Route the signal and check if we got any matches
-        case Engine.route_signal(trie, test_signal) do
-          [] -> false
-          _matches -> true
-        end
+    cond do
+      # Both exhausted - match
+      i >= type_len and j >= pattern_len ->
+        true
 
-      {:error, _} ->
+      # Pattern exhausted but type remains - only OK if we have trailing **
+      i >= type_len ->
+        # Check if remaining pattern is all **
+        Enum.drop(pattern_segs, j) |> Enum.all?(&(&1 == "**"))
+
+      # Pattern has ** - record backtrack position and advance pattern pointer
+      j < pattern_len and Enum.at(pattern_segs, j) == "**" ->
+        do_match_segments(type_segs, pattern_segs, i, j + 1, i, j + 1)
+
+      # Pattern has * or exact match - advance both pointers
+      j < pattern_len and
+          (Enum.at(pattern_segs, j) == "*" or
+             Enum.at(pattern_segs, j) == Enum.at(type_segs, i)) ->
+        do_match_segments(type_segs, pattern_segs, i + 1, j + 1, star_i, star_j)
+
+      # Mismatch - backtrack to last ** if available
+      star_j != nil ->
+        # Try consuming one more segment with **
+        do_match_segments(type_segs, pattern_segs, star_i + 1, star_j, star_i + 1, star_j)
+
+      # No match possible
+      true ->
         false
+    end
+  end
+
+  # Direct segment matching - replaces trie-based approach
+  defp do_matches?(type, pattern) do
+    case Validator.validate_path(pattern) do
+      {:ok, _} -> match_segments?(type, pattern)
+      {:error, _} -> false
     end
   end
 
@@ -675,29 +703,10 @@ defmodule Jido.Signal.Router do
   def filter(_signals, pattern) when not is_binary(pattern), do: []
 
   def filter(signals, pattern) when is_list(signals) and is_binary(pattern) do
-    # Validate the pattern first
     case Validator.validate_path(pattern) do
       {:ok, _} ->
-        # Create a test route with a dummy target
-        test_route = %Route{
-          path: pattern,
-          target: {:noop, []},
-          priority: 0
-        }
-
-        # Build a trie with just this route
-        trie = Engine.build_trie([test_route])
-
-        # Filter signals by routing each one
-        Enum.filter(signals, fn
-          %Signal{type: nil} ->
-            false
-
-          signal ->
-            case Engine.route_signal(trie, signal) do
-              [] -> false
-              _matches -> true
-            end
+        Enum.filter(signals, fn signal ->
+          matches?(signal.type, pattern)
         end)
 
       {:error, _} ->
