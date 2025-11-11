@@ -275,7 +275,17 @@ defmodule Jido.Signal.Router do
     with {:ok, normalized} <- Validator.normalize(routes),
          {:ok, validated} <- validate(normalized) do
       trie = Engine.build_trie(validated)
-      {:ok, %Router{trie: trie, route_count: length(validated)}}
+
+      # Count targets (multi-target routes count as multiple)
+      route_count =
+        Enum.reduce(validated, 0, fn route, acc ->
+          case route.target do
+            targets when is_list(targets) -> acc + length(targets)
+            _single_target -> acc + 1
+          end
+        end)
+
+      {:ok, %Router{trie: trie, route_count: route_count}}
     end
   end
 
@@ -317,7 +327,17 @@ defmodule Jido.Signal.Router do
     with {:ok, normalized} <- Validator.normalize(routes),
          {:ok, validated} <- validate(normalized) do
       new_trie = Engine.build_trie(validated, router.trie)
-      {:ok, %{router | trie: new_trie, route_count: router.route_count + length(validated)}}
+
+      # Count new targets (multi-target routes count as multiple)
+      added_count =
+        Enum.reduce(validated, 0, fn route, acc ->
+          case route.target do
+            targets when is_list(targets) -> acc + length(targets)
+            _single_target -> acc + 1
+          end
+        end)
+
+      {:ok, %{router | trie: new_trie, route_count: router.route_count + added_count}}
     end
   end
 
@@ -342,8 +362,13 @@ defmodule Jido.Signal.Router do
   """
   @spec remove(Router.t(), String.t() | [String.t()]) :: {:ok, Router.t()}
   def remove(%Router{} = router, paths) when is_list(paths) do
-    new_trie = Enum.reduce(paths, router.trie, &Engine.remove_path/2)
-    route_count = Engine.count_routes(new_trie)
+    {new_trie, total_removed} =
+      Enum.reduce(paths, {router.trie, 0}, fn path, {trie, count} ->
+        {updated_trie, removed} = Engine.remove_path(path, trie)
+        {updated_trie, count + removed}
+      end)
+
+    route_count = max(router.route_count - total_removed, 0)
     {:ok, %{router | trie: new_trie, route_count: route_count}}
   end
 
