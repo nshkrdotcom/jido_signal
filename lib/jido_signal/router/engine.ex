@@ -18,9 +18,14 @@ defmodule Jido.Signal.Router.Engine do
   """
   @spec build_trie([Route.t()], TrieNode.t()) :: TrieNode.t()
   def build_trie(routes, base_trie \\ %TrieNode{}) do
-    Enum.reduce(routes, base_trie, fn %Route{} = route, trie ->
-      segments = route.path |> sanitize_path() |> String.split(".")
+    # Precompute segments to avoid repeated splits
+    routes_with_segments =
+      Enum.map(routes, fn route ->
+        segments = route.path |> sanitize_path() |> String.split(".")
+        {route, segments}
+      end)
 
+    Enum.reduce(routes_with_segments, base_trie, fn {route, segments}, trie ->
       case route.match do
         nil ->
           handler_info = %HandlerInfo{
