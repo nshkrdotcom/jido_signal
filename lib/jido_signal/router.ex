@@ -751,9 +751,14 @@ defmodule Jido.Signal.Router do
   - `false` otherwise
   """
   @spec has_route?(Router.t(), String.t()) :: boolean()
-  def has_route?(%Router{} = router, route_path) when is_binary(route_path) do
-    case list(router) do
-      {:ok, routes} -> Enum.any?(routes, fn route -> route.path == route_path end)
+  def has_route?(%Router{} = router, path) when is_binary(path) do
+    case Validator.validate_path(path) do
+      {:ok, _} ->
+        segments = String.split(path, ".")
+        Engine.has_path?(router.trie, segments)
+
+      {:error, _} ->
+        false
     end
   end
 

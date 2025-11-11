@@ -85,6 +85,14 @@ defmodule Jido.Signal.Router.Engine do
   end
 
   @doc """
+  Checks if handlers exist at the exact path in the trie.
+  """
+  @spec has_path?(TrieNode.t(), [String.t()]) :: boolean()
+  def has_path?(trie, segments) do
+    do_has_path?(trie, segments)
+  end
+
+  @doc """
   Collects all routes from the trie into a list of Route structs.
   """
   @spec collect_routes(TrieNode.t()) :: [Route.t()]
@@ -93,6 +101,28 @@ defmodule Jido.Signal.Router.Engine do
   end
 
   # Private helpers
+
+  # Check if handlers exist at exact path
+  @spec do_has_path?(TrieNode.t(), [String.t()]) :: boolean()
+  defp do_has_path?(%TrieNode{handlers: nil}, []) do
+    # At leaf but no handlers exist
+    false
+  end
+
+  defp do_has_path?(
+         %TrieNode{handlers: %NodeHandlers{handlers: handlers, matchers: matchers}},
+         []
+       ) do
+    # At leaf - check if any handlers exist at this exact path
+    not Enum.empty?(handlers || []) or not Enum.empty?(matchers || [])
+  end
+
+  defp do_has_path?(%TrieNode{} = node, [segment | rest]) do
+    case Map.get(node.segments, segment) do
+      nil -> false
+      child_node -> do_has_path?(child_node, rest)
+    end
+  end
 
   defp sanitize_path(path) do
     path
