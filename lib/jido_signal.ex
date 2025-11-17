@@ -147,7 +147,6 @@ defmodule Jido.Signal do
 
   import Jido.Signal.Ext.Registry, only: [get: 1]
 
-  alias Jido.Signal.Dispatch
   alias Jido.Signal.Ext
   alias Jido.Signal.ID
   alias Jido.Signal.Serialization.Serializer
@@ -189,6 +188,28 @@ defmodule Jido.Signal do
                           ]
                         )
 
+  # Zoi schema for Signal struct - testing new default pattern
+  @signal_schema Zoi.struct(
+                   __MODULE__,
+                   %{
+                     # Required fields
+                     id: Zoi.string(),
+                     source: Zoi.string(),
+                     type: Zoi.string(),
+                     # Test: Zoi.default(...) |> Zoi.optional() pattern for static defaults
+                     specversion: Zoi.default(Zoi.string(), "1.0.2") |> Zoi.optional(),
+                     datacontenttype:
+                       Zoi.default(Zoi.string(), "application/json") |> Zoi.optional(),
+                     extensions: Zoi.default(Zoi.map(), %{}) |> Zoi.optional(),
+                     # Optional fields
+                     subject: Zoi.string() |> Zoi.nullable() |> Zoi.optional(),
+                     time: Zoi.string() |> Zoi.nullable() |> Zoi.optional(),
+                     dataschema: Zoi.string() |> Zoi.nullable() |> Zoi.optional(),
+                     data: Zoi.any() |> Zoi.optional(),
+                     jido_dispatch: Zoi.any() |> Zoi.optional()
+                   }
+                 )
+
   @derive {Jason.Encoder,
            only: [
              :id,
@@ -203,20 +224,13 @@ defmodule Jido.Signal do
              :extensions
            ]}
 
-  typedstruct do
-    field(:specversion, String.t(), default: "1.0.2")
-    field(:id, String.t(), enforce: true, default: ID.generate!())
-    field(:source, String.t(), enforce: true)
-    field(:type, String.t(), enforce: true)
-    field(:subject, String.t())
-    field(:time, String.t())
-    field(:datacontenttype, String.t())
-    field(:dataschema, String.t())
-    field(:data, term())
-    field(:extensions, map(), default: %{})
-    # Jido-specific fields
-    field(:jido_dispatch, Dispatch.dispatch_configs())
-  end
+  # Use Zoi.Struct helpers for automatic generation
+  @type t :: unquote(Zoi.type_spec(@signal_schema))
+  @enforce_keys Zoi.Struct.enforce_keys(@signal_schema)
+  defstruct Zoi.Struct.struct_fields(@signal_schema)
+
+  @doc "Returns the Zoi schema for Signal"
+  def schema, do: @signal_schema
 
   @doc """
   Defines a new Signal module.
