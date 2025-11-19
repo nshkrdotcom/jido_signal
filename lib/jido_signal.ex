@@ -35,9 +35,8 @@ defmodule Jido.Signal do
 
   ## Jido Extensions
 
-  Beyond the CloudEvents spec, Signals include Jido-specific fields:
-
-  - `jido_dispatch`: Routing and delivery configuration (optional)
+  Beyond the CloudEvents spec, Signals support a flexible extension system for
+  adding custom metadata and behavior. See `Jido.Signal.Ext` for details.
 
   ## Creating Signals
 
@@ -48,8 +47,7 @@ defmodule Jido.Signal do
 
   # Preferred: positional constructor (type, data, attrs)
   {:ok, signal} = Signal.new("metrics.collected", %{cpu: 80, memory: 70},
-    source: "/monitoring",
-    jido_dispatch: {:pubsub, topic: "metrics"}
+    source: "/monitoring"
   )
 
   # Also available: map/keyword constructor (backwards compatible)
@@ -88,8 +86,7 @@ defmodule Jido.Signal do
   {:ok, signal} = MySignal.new(
     %{user_id: "123", message: "Hello"},
     source: "/different/source",
-    subject: "user-notification",
-    jido_dispatch: {:pubsub, topic: "events"}
+    subject: "user-notification"
   )
   ```
 
@@ -123,18 +120,14 @@ defmodule Jido.Signal do
 
   ## Dispatch Configuration
 
-  The `jido_dispatch` field controls how the Signal is delivered:
+  Signal dispatch is configured when subscribing to the Bus or when calling Dispatch directly:
 
   ```elixir
-  # Single dispatch config
-  jido_dispatch: {:pubsub, topic: "events"}
+  # Configure dispatch when subscribing
+  Bus.subscribe(bus, "user.*", dispatch: {:pubsub, topic: "events"})
 
-  # Multiple dispatch targets
-  jido_dispatch: [
-    {:pubsub, topic: "events"},
-    {:logger, level: :info},
-    {:webhook, url: "https://api.example.com/webhook"}
-  ]
+  # Or dispatch directly with config
+  Dispatch.dispatch(signal, {:logger, level: :info})
   ```
 
   ## See Also
@@ -433,7 +426,7 @@ defmodule Jido.Signal do
 
   - `type`: A string representing the event type (e.g., `"user.created"`).
   - `data`: The payload (any term; see CloudEvents rules below).
-  - `attrs`: (Optional) A map or keyword list of additional Signal attributes (e.g., `:source`, `:subject`, `:jido_dispatch`).
+  - `attrs`: (Optional) A map or keyword list of additional Signal attributes (e.g., `:source`, `:subject`).
 
   ## Returns
 
@@ -761,10 +754,22 @@ defmodule Jido.Signal do
   defp parse_jido_dispatch(nil), do: {:ok, nil}
 
   defp parse_jido_dispatch({adapter, opts} = config) when is_atom(adapter) and is_list(opts) do
+    IO.warn(
+      "Signal.jido_dispatch field is deprecated and will be removed in the next major version. " <>
+        "Use the Dispatch extension or pass dispatch configs to Bus.subscribe/3 or Dispatch.dispatch/2 instead.",
+      []
+    )
+
     {:ok, config}
   end
 
   defp parse_jido_dispatch(config) when is_list(config) do
+    IO.warn(
+      "Signal.jido_dispatch field is deprecated and will be removed in the next major version. " <>
+        "Use the Dispatch extension or pass dispatch configs to Bus.subscribe/3 or Dispatch.dispatch/2 instead.",
+      []
+    )
+
     {:ok, config}
   end
 

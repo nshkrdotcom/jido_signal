@@ -142,15 +142,13 @@ defmodule Jido.Signal.CustomTest do
 
       opts = [
         source: "/runtime/source",
-        subject: "runtime-subject",
-        jido_dispatch: {:pubsub, topic: "test"}
+        subject: "runtime-subject"
       ]
 
       assert {:ok, signal} = ComplexSignal.new(data, opts)
       assert signal.type == "complex.signal"
       assert signal.source == "/runtime/source"
       assert signal.subject == "runtime-subject"
-      assert signal.jido_dispatch == {:pubsub, topic: "test"}
       assert signal.datacontenttype == "application/json"
     end
 
