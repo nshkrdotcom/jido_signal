@@ -457,7 +457,8 @@ defmodule Jido.Signal.Ext.IntegrationTest do
       {:ok, serialized} = JsonSerializer.serialize(basic_signal)
       {:ok, deserialized} = JsonSerializer.deserialize(serialized, type: "Elixir.Jido.Signal")
       assert deserialized.type == "test.basic"
-      assert deserialized.data.message == "basic test"
+      # After deserialization, data keys become strings (security: no unsafe atom creation)
+      assert deserialized.data["message"] == "basic test"
     end
   end
 

@@ -1,5 +1,5 @@
 defmodule Jido.Signal.DispatchTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Jido.Signal.Dispatch
 
@@ -276,7 +276,7 @@ defmodule Jido.Signal.DispatchTest do
       test_pid = self()
 
       config = [
-        {:pid, [target: test_pid, delivery_mode: :sync]},
+        {:pid, [target: test_pid, delivery_mode: :sync, timeout: 100]},
         {:pid, [target: test_pid, delivery_mode: :async]},
         {:logger, [level: :debug]}
       ]
