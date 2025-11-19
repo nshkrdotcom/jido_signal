@@ -81,20 +81,14 @@ defmodule Jido.Signal.Router do
   Signal routing:
   ```elixir
   # Route to handler
-  {:ok, [HandleUserCreated]} = Router.route(router, %Signal{
-    type: "user.created",
-    data: %{id: "123"}
-  })
+  {:ok, [HandleUserCreated]} = Router.route(router, Jido.Signal.new!("user.created", %{id: "123"}))
 
   # Route to multiple dispatch targets
   {:ok, [
     {MetricsAdapter, [type: :error]},
     {AlertAdapter, [priority: :high]},
     {LogAdapter, [level: :error]}
-  ]} = Router.route(router, %Signal{
-    type: "system.error",
-    data: %{message: "Critical error"}
-  })
+  ]} = Router.route(router, Jido.Signal.new!("system.error", %{message: "Critical error"}))
   ```
 
   ## Path Complexity Scoring
