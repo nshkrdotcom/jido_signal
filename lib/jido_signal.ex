@@ -1181,35 +1181,49 @@ defmodule Jido.Signal do
 
                   {true, matching_attrs} ->
                     # Found relevant attributes, validate them
-                    # Convert to atom keys for validation
+                    # Convert to atom keys for validation (only for known keys)
+                    # Skip any keys that don't exist as atoms (security: prevent atom exhaustion)
                     atom_keyed_attrs =
-                      Map.new(matching_attrs, fn {k, v} -> {String.to_atom(k), v} end)
+                      Enum.reduce(matching_attrs, %{}, fn {k, v}, acc ->
+                        try do
+                          Map.put(acc, String.to_existing_atom(k), v)
+                        rescue
+                          ArgumentError -> acc
+                        end
+                      end)
 
-                    case Ext.safe_validate_data(extension_module, atom_keyed_attrs) do
-                      {:ok, {:ok, validated_data}} ->
-                        # Remove the extension's attributes from remaining attrs
-                        updated_attrs =
-                          Enum.reduce(matching_attrs, attrs_acc, fn {key, _value}, acc ->
-                            if key in core_fields do
-                              # Don't remove core fields
-                              acc
-                            else
-                              Map.delete(acc, key)
-                            end
-                          end)
-
-                        {Map.put(ext_acc, namespace, validated_data), updated_attrs}
-
-                      {:ok, {:error, _reason}} ->
-                        # Validation failed, skip this extension
+                    # Skip validation if no valid atom keys were found
+                    case map_size(atom_keyed_attrs) do
+                      0 ->
                         {ext_acc, attrs_acc}
 
-                      {:error, reason} ->
-                        Logger.warning(
-                          "Extension #{namespace} validate_data failed: #{inspect(reason)} - skipping"
-                        )
+                      _ ->
+                        case Ext.safe_validate_data(extension_module, atom_keyed_attrs) do
+                          {:ok, {:ok, validated_data}} ->
+                            # Remove the extension's attributes from remaining attrs
+                            updated_attrs =
+                              Enum.reduce(matching_attrs, attrs_acc, fn {key, _value}, acc ->
+                                if key in core_fields do
+                                  # Don't remove core fields
+                                  acc
+                                else
+                                  Map.delete(acc, key)
+                                end
+                              end)
 
-                        {ext_acc, attrs_acc}
+                            {Map.put(ext_acc, namespace, validated_data), updated_attrs}
+
+                          {:ok, {:error, _reason}} ->
+                            # Validation failed, skip this extension
+                            {ext_acc, attrs_acc}
+
+                          {:error, reason} ->
+                            Logger.warning(
+                              "Extension #{namespace} validate_data failed: #{inspect(reason)} - skipping"
+                            )
+
+                            {ext_acc, attrs_acc}
+                        end
                     end
                 end
 
