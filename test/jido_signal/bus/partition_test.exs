@@ -468,10 +468,13 @@ defmodule JidoTest.Signal.Bus.PartitionTest do
       :telemetry.attach(
         handler_id,
         [:jido, :signal, :bus, :after_dispatch],
-        fn event, measurements, metadata, _config ->
-          send(test_pid, {:telemetry_event, event, measurements, metadata})
+        fn event, measurements, metadata, config ->
+          # Only forward events for our specific bus to avoid cross-test interference
+          if metadata[:bus_name] == config.bus_name do
+            send(config.test_pid, {:telemetry_event, event, measurements, metadata})
+          end
         end,
-        nil
+        %{test_pid: test_pid, bus_name: bus}
       )
 
       {:ok, _subscription} = Bus.subscribe(bus, "test.signal")
