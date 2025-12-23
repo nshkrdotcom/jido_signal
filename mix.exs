@@ -154,9 +154,7 @@ defmodule Jido.Signal.MixProject do
         "System Infrastructure": [
           Jido.Signal.Application,
           Jido.Signal.Registry,
-          Jido.Signal.Registry.Subscription,
-          Jido.Signal.Topology,
-          Jido.Signal.Topology.ProcessNode
+          Jido.Signal.Registry.Subscription
         ],
         "Errors & Exceptions": [
           Jido.Signal.Error.DispatchError,
