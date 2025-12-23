@@ -124,6 +124,7 @@ defmodule Jido.Signal.MixProject do
         "Signal Dispatch": [
           Jido.Signal.Dispatch,
           Jido.Signal.Dispatch.Adapter,
+          Jido.Signal.Dispatch.CircuitBreaker,
           Jido.Signal.Dispatch.ConsoleAdapter,
           Jido.Signal.Dispatch.Http,
           Jido.Signal.Dispatch.LoggerAdapter,
@@ -137,6 +138,7 @@ defmodule Jido.Signal.MixProject do
           Jido.Signal.Journal,
           Jido.Signal.Journal.Adapters.ETS,
           Jido.Signal.Journal.Adapters.InMemory,
+          Jido.Signal.Journal.Adapters.Mnesia,
           Jido.Signal.Journal.Persistence
         ],
         Serialization: [
@@ -204,6 +206,8 @@ defmodule Jido.Signal.MixProject do
       {:uniq, "~> 0.6.1"},
       {:splode, "~> 0.2.9"},
       {:zoi, "~> 0.10"},
+      {:memento, "~> 0.3.2"},
+      {:fuse, "~> 2.5"},
 
       # Development & Test Dependencies
       {:git_ops, "~> 2.9", only: :dev, runtime: false},
