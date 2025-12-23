@@ -620,7 +620,11 @@ defmodule JidoTest.Signal.Bus.MiddlewarePipeline do
       {:ok, subscriber: subscriber, signal: signal, context: context, bus_name: unique_bus_name}
     end
 
-    test "emits start and stop events for before_publish", %{signal: signal, context: context, bus_name: bus_name} do
+    test "emits start and stop events for before_publish", %{
+      signal: signal,
+      context: context,
+      bus_name: bus_name
+    } do
       {:ok, configs} = MiddlewarePipeline.init_middleware([{TestMiddleware1, []}])
 
       {:ok, _, _} = MiddlewarePipeline.before_publish(configs, [signal], context)
@@ -667,7 +671,11 @@ defmodule JidoTest.Signal.Bus.MiddlewarePipeline do
       assert metadata.module == JidoTest.Signal.Bus.MiddlewarePipeline.SlowMiddleware
     end
 
-    test "emits stop event for after_publish", %{signal: signal, context: context, bus_name: bus_name} do
+    test "emits stop event for after_publish", %{
+      signal: signal,
+      context: context,
+      bus_name: bus_name
+    } do
       {:ok, configs} = MiddlewarePipeline.init_middleware([{TestMiddleware1, []}])
 
       _updated = MiddlewarePipeline.after_publish(configs, [signal], context)
