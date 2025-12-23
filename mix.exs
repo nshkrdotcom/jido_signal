@@ -206,7 +206,7 @@ defmodule Jido.Signal.MixProject do
       {:uniq, "~> 0.6.1"},
       {:splode, "~> 0.2.9"},
       {:zoi, "~> 0.10"},
-      {:memento, "~> 0.3.2"},
+      {:memento, "~> 0.5.0"},
       {:fuse, "~> 2.5"},
 
       # Development & Test Dependencies

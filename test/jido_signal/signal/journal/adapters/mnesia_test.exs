@@ -40,33 +40,26 @@ defmodule Jido.Signal.Journal.Adapters.MnesiaTest do
   end
 
   setup do
-    tables = [
-      Tables.Signal,
-      Tables.Cause,
-      Tables.Effect,
-      Tables.Conversation,
-      Tables.Checkpoint
-    ]
-
-    Enum.each(tables, fn table ->
-      :mnesia.clear_table(table)
-    end)
+    # Use module atoms directly to avoid deprecation warning about
+    # map.field notation when passing modules to :mnesia functions
+    :mnesia.clear_table(Tables.Signal)
+    :mnesia.clear_table(Tables.Cause)
+    :mnesia.clear_table(Tables.Effect)
+    :mnesia.clear_table(Tables.Conversation)
+    :mnesia.clear_table(Tables.Checkpoint)
+    :mnesia.clear_table(Tables.DLQ)
 
     :ok
   end
 
   test "init creates Mnesia tables" do
-    tables = [
-      Tables.Signal,
-      Tables.Cause,
-      Tables.Effect,
-      Tables.Conversation,
-      Tables.Checkpoint
-    ]
+    mnesia_tables = :mnesia.system_info(:tables)
 
-    Enum.each(tables, fn table ->
-      assert table in :mnesia.system_info(:tables)
-    end)
+    assert Tables.Signal in mnesia_tables
+    assert Tables.Cause in mnesia_tables
+    assert Tables.Effect in mnesia_tables
+    assert Tables.Conversation in mnesia_tables
+    assert Tables.Checkpoint in mnesia_tables
   end
 
   test "put_signal/2 and get_signal/2" do

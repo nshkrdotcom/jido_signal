@@ -29,3 +29,7 @@ jido_signal-*.tar
 
 # Dialyzer PLT files
 /priv/plts/
+
+# Mnesia data files
+Mnesia.*
+MnesiaCore.*
