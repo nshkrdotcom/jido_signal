@@ -594,11 +594,19 @@ defmodule Jido.Signal.Router do
      )}
   end
 
-  def route(%Router{trie: trie}, %Signal{} = signal) do
+  def route(%Router{trie: trie, cache_id: cache_id}, %Signal{} = signal) do
+    start_time = System.monotonic_time(:microsecond)
     results = Engine.route_signal(trie, signal)
+    latency_us = System.monotonic_time(:microsecond) - start_time
 
     case results do
       [] ->
+        :telemetry.execute(
+          [:jido, :signal, :router, :routed],
+          %{latency_us: latency_us, match_count: 0},
+          %{signal_type: signal.type, cache_id: cache_id, matched: false}
+        )
+
         {:error,
          Error.routing_error(
            "No matching handlers found for signal",
@@ -606,6 +614,12 @@ defmodule Jido.Signal.Router do
          )}
 
       _ ->
+        :telemetry.execute(
+          [:jido, :signal, :router, :routed],
+          %{latency_us: latency_us, match_count: length(results)},
+          %{signal_type: signal.type, cache_id: cache_id, matched: true}
+        )
+
         {:ok, results}
     end
   end

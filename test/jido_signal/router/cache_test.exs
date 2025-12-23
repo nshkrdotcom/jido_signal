@@ -331,4 +331,73 @@ defmodule Jido.Signal.Router.CacheTest do
       assert router3.cache_id == {:app, :audit}
     end
   end
+
+  describe "telemetry" do
+    test "emits [:jido, :signal, :router, :routed] event on successful route" do
+      {:ok, _router} = Router.new([{"user.created", :handler1}], cache_id: :telemetry_test)
+
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-router-telemetry",
+        [:jido, :signal, :router, :routed],
+        fn event, measurements, metadata, _ ->
+          send(test_pid, {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      signal = %Signal{
+        id: Jido.Signal.ID.generate!(),
+        source: "/test",
+        type: "user.created",
+        data: %{}
+      }
+
+      {:ok, [:handler1]} = Cache.route(:telemetry_test, signal)
+
+      assert_receive {:telemetry_event, [:jido, :signal, :router, :routed], measurements,
+                      metadata}
+
+      assert is_integer(measurements.latency_us)
+      assert measurements.match_count == 1
+      assert metadata.signal_type == "user.created"
+      assert metadata.cache_id == :telemetry_test
+      assert metadata.matched == true
+
+      :telemetry.detach("test-router-telemetry")
+    end
+
+    test "emits telemetry event with matched: false when no handlers found" do
+      {:ok, _router} = Router.new([{"user.created", :handler1}], cache_id: :telemetry_nomatch)
+
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-router-telemetry-nomatch",
+        [:jido, :signal, :router, :routed],
+        fn event, measurements, metadata, _ ->
+          send(test_pid, {:telemetry_event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      signal = %Signal{
+        id: Jido.Signal.ID.generate!(),
+        source: "/test",
+        type: "payment.processed",
+        data: %{}
+      }
+
+      {:error, _} = Cache.route(:telemetry_nomatch, signal)
+
+      assert_receive {:telemetry_event, [:jido, :signal, :router, :routed], measurements,
+                      metadata}
+
+      assert measurements.match_count == 0
+      assert metadata.matched == false
+
+      :telemetry.detach("test-router-telemetry-nomatch")
+    end
+  end
 end
