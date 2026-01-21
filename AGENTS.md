@@ -39,3 +39,33 @@
 - `with...do` pipelines for public API functions
 - Pattern matching guards, early validation with NimbleOptions
 - Tests use ExUnit, Mimic for mocking, tags `:capture_log`, `:flaky`, `:skip`
+
+## Git Commit Guidelines
+
+Use **Conventional Commits** format for all commit messages:
+
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:**
+- `feat` - New feature
+- `fix` - Bug fix
+- `docs` - Documentation only
+- `style` - Formatting, no code change
+- `refactor` - Code change that neither fixes a bug nor adds a feature
+- `test` - Adding or updating tests
+- `chore` - Maintenance tasks, dependency updates
+
+**Examples:**
+```
+feat(router): add wildcard pattern matching
+fix(bus): handle subscriber exit during dispatch
+docs: update signal routing guide
+test(dispatch): add circuit breaker tests
+chore(deps): bump splode to 0.2.10
+```
