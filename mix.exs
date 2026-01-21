@@ -1,7 +1,7 @@
 defmodule Jido.Signal.MixProject do
   use Mix.Project
 
-  @version "1.2.0"
+  @version "2.0.0-rc.0"
   @source_url "https://github.com/agentjido/jido_signal"
   @description "Agent Communication Envelope and Utilities"
 
@@ -202,8 +202,8 @@ defmodule Jido.Signal.MixProject do
       {:telemetry_metrics, "~> 1.1"},
       {:typed_struct, "~> 0.3.0"},
       {:uniq, "~> 0.6.1"},
-      {:splode, "~> 0.2.9"},
-      {:zoi, "~> 0.10"},
+      {:splode, "~> 0.2.10"},
+      {:zoi, "~> 0.16"},
       {:memento, "~> 0.5.0"},
       {:fuse, "~> 2.5"},
 
