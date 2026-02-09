@@ -9,6 +9,7 @@ defmodule Jido.Signal.Bus.Stream do
   """
 
   alias Jido.Signal
+  alias Jido.Signal.Bus.RecordedSignal
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Dispatch
   alias Jido.Signal.ID
@@ -22,75 +23,29 @@ defmodule Jido.Signal.Bus.Stream do
   """
   @spec filter(BusState.t(), String.t(), integer() | nil, keyword()) ::
           {:ok, list(Jido.Signal.Bus.RecordedSignal.t())} | {:error, atom()}
-  def filter(%BusState{} = state, type_pattern, start_timestamp \\ nil, opts \\ []) do
+  def filter(state, type_pattern, start_timestamp \\ nil, opts \\ [])
+
+  def filter(%BusState{} = state, type_pattern, opts, []) when is_list(opts) do
+    filter(state, type_pattern, nil, opts)
+  end
+
+  def filter(%BusState{} = state, type_pattern, start_timestamp, opts) do
     batch_size = Keyword.get(opts, :batch_size, 1_000)
     correlation_id = Keyword.get(opts, :correlation_id)
 
-    # Get list of signals from log map
-    signals = BusState.log_to_list(state)
+    entries =
+      state.log
+      |> Enum.sort_by(fn {log_id, _signal} -> log_id end)
+      |> maybe_filter_by_timestamp(start_timestamp)
+      |> maybe_filter_by_correlation_id(correlation_id)
 
-    # First filter by timestamp if provided
-    timestamp_filtered =
-      if start_timestamp do
-        filtered =
-          Enum.filter(signals, fn signal ->
-            # For UUID7 IDs, we can extract the timestamp directly from the ID
-            # This is more efficient than converting DateTime to Unix time
-            # Fall back to created_at if ID timestamp extraction fails
-            signal_ts =
-              try do
-                ts = ID.extract_timestamp(signal.id)
-
-                ts
-              rescue
-                _error ->
-                  # Default to 0 to include the signal
-                  0
-              end
-
-            signal_ts > start_timestamp
-          end)
-
-        filtered
-      else
-        signals
-      end
-
-    # Then filter by correlation_id if provided
-    correlation_filtered =
-      if correlation_id do
-        Enum.filter(timestamp_filtered, fn signal ->
-          signal.correlation_id == correlation_id
-        end)
-      else
-        timestamp_filtered
-      end
-
-    # Finally filter by type pattern
-    # We need to check if the pattern is valid first
     case Router.Validator.validate_path(type_pattern) do
       {:ok, _} ->
-        # Create a simple pattern matcher function
-        matches_pattern? = fn signal ->
-          matches = Router.matches?(signal.type, type_pattern)
-
-          matches
-        end
-
-        # Apply the pattern filter and take the specified batch size
         filtered_signals =
-          correlation_filtered
-          |> Enum.filter(matches_pattern?)
+          entries
+          |> Enum.filter(fn {_log_id, signal} -> Router.matches?(signal.type, type_pattern) end)
           |> Enum.take(batch_size)
-          |> Enum.map(fn signal ->
-            # Convert to RecordedSignal struct
-            %Jido.Signal.Bus.RecordedSignal{
-              id: signal.id,
-              type: signal.type,
-              created_at: DateTime.utc_now(),
-              signal: signal
-            }
-          end)
+          |> Enum.map(&to_recorded_signal/1)
 
         {:ok, filtered_signals}
 
@@ -102,6 +57,95 @@ defmodule Jido.Signal.Bus.Stream do
     error ->
       Logger.error("Error filtering signals: #{inspect(error)}")
       {:error, :filter_failed}
+  end
+
+  defp maybe_filter_by_timestamp(entries, start_timestamp) when is_integer(start_timestamp) do
+    Enum.filter(entries, fn {log_id, signal} ->
+      timestamp_from_log_or_signal(log_id, signal) > start_timestamp
+    end)
+  end
+
+  defp maybe_filter_by_timestamp(entries, _start_timestamp), do: entries
+
+  defp maybe_filter_by_correlation_id(entries, nil), do: entries
+
+  defp maybe_filter_by_correlation_id(entries, correlation_id) do
+    Enum.filter(entries, fn {_log_id, signal} ->
+      correlation_id_from_signal(signal) == correlation_id
+    end)
+  end
+
+  defp to_recorded_signal({log_id, signal}) do
+    %RecordedSignal{
+      id: log_id,
+      type: signal.type,
+      created_at: created_at_from_log_or_signal(log_id, signal),
+      signal: signal
+    }
+  end
+
+  defp created_at_from_log_or_signal(log_id, signal) do
+    case extract_log_timestamp(log_id) do
+      {:ok, timestamp} ->
+        DateTime.from_unix!(timestamp, :millisecond)
+
+      :error ->
+        case parse_signal_time(signal) do
+          {:ok, datetime} -> datetime
+          :error -> DateTime.utc_now()
+        end
+    end
+  end
+
+  defp timestamp_from_log_or_signal(log_id, signal) do
+    case extract_log_timestamp(log_id) do
+      {:ok, timestamp} ->
+        timestamp
+
+      :error ->
+        case parse_signal_time(signal) do
+          {:ok, datetime} -> DateTime.to_unix(datetime, :millisecond)
+          :error -> 0
+        end
+    end
+  end
+
+  defp extract_log_timestamp(log_id) when is_binary(log_id) do
+    {:ok, ID.extract_timestamp(log_id)}
+  rescue
+    _ -> :error
+  end
+
+  defp extract_log_timestamp(_log_id), do: :error
+
+  defp parse_signal_time(%Signal{time: time}) when is_binary(time) do
+    case DateTime.from_iso8601(time) do
+      {:ok, datetime, _offset} -> {:ok, datetime}
+      _ -> :error
+    end
+  end
+
+  defp parse_signal_time(_signal), do: :error
+
+  defp correlation_id_from_signal(%Signal{extensions: extensions}) when is_map(extensions) do
+    Map.get(extensions, "correlation_id") ||
+      Map.get(extensions, :correlation_id) ||
+      correlation_extension_id(extensions)
+  end
+
+  defp correlation_id_from_signal(_signal), do: nil
+
+  defp correlation_extension_id(extensions) do
+    case Map.get(extensions, "correlation") || Map.get(extensions, :correlation) do
+      correlation when is_map(correlation) ->
+        Map.get(correlation, "correlation_id") ||
+          Map.get(correlation, :correlation_id) ||
+          Map.get(correlation, "trace_id") ||
+          Map.get(correlation, :trace_id)
+
+      _ ->
+        nil
+    end
   end
 
   @doc """

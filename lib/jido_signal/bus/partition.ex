@@ -373,6 +373,7 @@ defmodule Jido.Signal.Bus.Partition do
 
     case Task.yield(task, @default_dispatch_timeout_ms) || Task.shutdown(task, :brutal_kill) do
       {:ok, result} -> result
+      {:exit, reason} -> {:error, reason}
       nil -> {:error, :timeout}
     end
   end

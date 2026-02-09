@@ -342,6 +342,11 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
     {:noreply, new_state}
   end
 
+  @impl GenServer
+  def handle_info({:shutdown, reason}, state) do
+    {:stop, reason, state}
+  end
+
   def handle_info(_msg, state) do
     {:noreply, state}
   end

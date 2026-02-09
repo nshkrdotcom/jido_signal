@@ -4,16 +4,11 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
   Uses separate ETS tables for signals, causes, effects, and conversations.
 
   ## Configuration
-  The adapter requires a prefix for table names to allow multiple instances:
+  The adapter accepts a prefix for API compatibility, but does not create dynamic
+  atoms for process names or table names.
 
       {:ok, _pid} = Jido.Signal.Journal.Adapters.ETS.start_link("my_journal_")
       {:ok, journal} = Jido.Signal.Journal.new(Jido.Signal.Journal.Adapters.ETS)
-
-  This will create tables with names:
-    - :my_journal_signals
-    - :my_journal_causes
-    - :my_journal_effects
-    - :my_journal_conversations
   """
   @behaviour Jido.Signal.Journal.Persistence
 
@@ -25,12 +20,12 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
   @schema Zoi.struct(
             __MODULE__,
             %{
-              signals_table: Zoi.atom() |> Zoi.nullable() |> Zoi.optional(),
-              causes_table: Zoi.atom() |> Zoi.nullable() |> Zoi.optional(),
-              effects_table: Zoi.atom() |> Zoi.nullable() |> Zoi.optional(),
-              conversations_table: Zoi.atom() |> Zoi.nullable() |> Zoi.optional(),
-              checkpoints_table: Zoi.atom() |> Zoi.nullable() |> Zoi.optional(),
-              dlq_table: Zoi.atom() |> Zoi.nullable() |> Zoi.optional()
+              signals_table: Zoi.any() |> Zoi.nullable() |> Zoi.optional(),
+              causes_table: Zoi.any() |> Zoi.nullable() |> Zoi.optional(),
+              effects_table: Zoi.any() |> Zoi.nullable() |> Zoi.optional(),
+              conversations_table: Zoi.any() |> Zoi.nullable() |> Zoi.optional(),
+              checkpoints_table: Zoi.any() |> Zoi.nullable() |> Zoi.optional(),
+              dlq_table: Zoi.any() |> Zoi.nullable() |> Zoi.optional()
             }
           )
 
@@ -47,9 +42,7 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
   Starts the ETS adapter with the given table name prefix.
   """
   def start_link(prefix) when is_binary(prefix) do
-    # Generate a unique name for this instance's GenServer
-    name = String.to_atom("#{prefix}process_#{System.unique_integer([:positive, :monotonic])}")
-    GenServer.start_link(__MODULE__, prefix, name: name)
+    GenServer.start_link(__MODULE__, prefix)
   end
 
   @impl Jido.Signal.Journal.Persistence
@@ -180,45 +173,20 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
   ## Examples
 
       iex> {:ok, adapter} = Jido.Signal.Journal.Adapters.ETS.init("my_journal_")
-      iex> adapter.signals_table
-      :my_journal_signals_...
+      iex> is_reference(adapter.signals_table)
+      true
   """
   @spec init(String.t()) :: {:ok, t()} | {:error, term()}
   @impl GenServer
-  def init(prefix) do
+  def init(_prefix) do
     adapter = %__MODULE__{
-      signals_table:
-        String.to_atom("#{prefix}signals_#{System.unique_integer([:positive, :monotonic])}"),
-      causes_table:
-        String.to_atom("#{prefix}causes_#{System.unique_integer([:positive, :monotonic])}"),
-      effects_table:
-        String.to_atom("#{prefix}effects_#{System.unique_integer([:positive, :monotonic])}"),
-      conversations_table:
-        String.to_atom("#{prefix}conversations_#{System.unique_integer([:positive, :monotonic])}"),
-      checkpoints_table:
-        String.to_atom("#{prefix}checkpoints_#{System.unique_integer([:positive, :monotonic])}"),
-      dlq_table: String.to_atom("#{prefix}dlq_#{System.unique_integer([:positive, :monotonic])}")
+      signals_table: :ets.new(:jido_signal_journal_signals, [:set, :public]),
+      causes_table: :ets.new(:jido_signal_journal_causes, [:set, :public]),
+      effects_table: :ets.new(:jido_signal_journal_effects, [:set, :public]),
+      conversations_table: :ets.new(:jido_signal_journal_conversations, [:set, :public]),
+      checkpoints_table: :ets.new(:jido_signal_journal_checkpoints, [:set, :public]),
+      dlq_table: :ets.new(:jido_signal_journal_dlq, [:set, :public])
     }
-
-    # Create tables if they don't exist
-    tables = [
-      {:signals, adapter.signals_table, [:set, :public, :named_table]},
-      {:causes, adapter.causes_table, [:set, :public, :named_table]},
-      {:effects, adapter.effects_table, [:set, :public, :named_table]},
-      {:conversations, adapter.conversations_table, [:set, :public, :named_table]},
-      {:checkpoints, adapter.checkpoints_table, [:set, :public, :named_table]},
-      {:dlq, adapter.dlq_table, [:set, :public, :named_table]}
-    ]
-
-    Enum.each(tables, fn {_name, table, opts} ->
-      case :ets.whereis(table) do
-        :undefined ->
-          :ets.new(table, opts)
-
-        _ref ->
-          :ok
-      end
-    end)
 
     cache_tables_in_persistent_term(adapter)
     {:ok, adapter}
@@ -459,12 +427,7 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
       adapter.checkpoints_table,
       adapter.dlq_table
     ]
-    |> Enum.each(fn table ->
-      case :ets.whereis(table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(table)
-      end
-    end)
+    |> Enum.each(&delete_table/1)
 
     clear_persistent_term_cache()
     {:reply, :ok, adapter}
@@ -499,4 +462,15 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
   end
 
   defp persistent_term_key(pid \\ self()), do: {__MODULE__, :tables, pid}
+
+  defp delete_table(table) do
+    case :ets.info(table) do
+      :undefined -> :ok
+      _info -> :ets.delete(table)
+    end
+
+    :ok
+  rescue
+    ArgumentError -> :ok
+  end
 end

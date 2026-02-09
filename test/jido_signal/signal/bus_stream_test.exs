@@ -4,6 +4,7 @@ defmodule Jido.Signal.Bus.StreamTest do
   alias Jido.Signal
   alias Jido.Signal.Bus.State, as: BusState
   alias Jido.Signal.Bus.Stream
+  alias Jido.Signal.ID
   alias Jido.Signal.Router
 
   @moduletag :capture_log
@@ -341,14 +342,16 @@ defmodule Jido.Signal.Bus.StreamTest do
         Signal.new(%{
           type: "test.signal.1",
           source: "/test",
-          data: %{value: 1}
+          data: %{value: 1},
+          extensions: %{"correlation_id" => "test-correlation"}
         })
 
       {:ok, signal2} =
         Signal.new(%{
           type: "test.signal.2",
           source: "/test",
-          data: %{value: 2}
+          data: %{value: 2},
+          extensions: %{"correlation_id" => "other-correlation"}
         })
 
       state = %BusState{
@@ -360,14 +363,39 @@ defmodule Jido.Signal.Bus.StreamTest do
         }
       }
 
-      # The current implementation in Stream.filter checks signal.correlation_id
-      # but our signals have correlation_id in jido_metadata
-      # Let's modify the test to check if any signals are returned
-      {:ok, filtered_signals} = Stream.filter(state, "**", correlation_id: "test-correlation")
+      {:ok, filtered_signals} =
+        Stream.filter(state, "**", nil, correlation_id: "test-correlation")
 
-      # Since the implementation is looking for correlation_id directly on the signal
-      # and not in jido_metadata, we expect no matches
-      assert Enum.empty?(filtered_signals)
+      assert length(filtered_signals) == 1
+      assert hd(filtered_signals).signal.id == signal1.id
+    end
+
+    test "builds recorded signals with bus log IDs" do
+      signal = Signal.new!(type: "test.signal", source: "/test", data: %{value: 1})
+      log_id = ID.generate!()
+
+      state = %BusState{
+        name: :test_bus,
+        router: Router.new!(),
+        log: %{log_id => signal}
+      }
+
+      {:ok, [recorded_signal]} = Stream.filter(state, "test.signal")
+
+      assert recorded_signal.id == log_id
+      assert recorded_signal.signal.id == signal.id
+    end
+
+    test "correlation filtering does not crash when signals have no correlation metadata" do
+      signal = Signal.new!(type: "test.signal", source: "/test", data: %{value: 1})
+
+      state = %BusState{
+        name: :test_bus,
+        router: Router.new!(),
+        log: %{"uuid-1" => signal}
+      }
+
+      assert {:ok, []} = Stream.filter(state, "**", nil, correlation_id: "missing-correlation")
     end
 
     test "returns signals in chronological order" do

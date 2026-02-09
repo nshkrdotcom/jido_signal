@@ -70,9 +70,15 @@ defmodule Jido.Signal.Router.Cache.Manager do
     case Process.whereis(@name) do
       nil ->
         case GenServer.start_link(__MODULE__, :ok, name: @name) do
-          {:ok, pid} -> {:ok, pid}
-          {:error, {:already_started, pid}} -> {:ok, pid}
-          error -> error
+          {:ok, pid} ->
+            Process.unlink(pid)
+            {:ok, pid}
+
+          {:error, {:already_started, pid}} ->
+            {:ok, pid}
+
+          error ->
+            error
         end
 
       pid ->

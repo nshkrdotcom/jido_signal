@@ -5,6 +5,7 @@ defmodule Jido.Signal.Router.CacheTest do
   alias Jido.Signal.ID
   alias Jido.Signal.Router
   alias Jido.Signal.Router.Cache
+  alias Jido.Signal.Router.Cache.Manager
 
   @moduletag :capture_log
 
@@ -70,6 +71,40 @@ defmodule Jido.Signal.Router.CacheTest do
       Process.exit(owner, :kill)
       assert_receive {:DOWN, ^ref, :process, ^owner, _reason}, 1_000
       assert wait_until(fn -> not Cache.cached?(:managed_router) end)
+    end
+
+    test "cache manager survives caller shutdown during lazy start" do
+      if pid = Process.whereis(Manager) do
+        Process.exit(pid, :kill)
+        assert wait_until(fn -> Process.whereis(Manager) == nil end)
+      end
+
+      {:ok, router} = Router.new([{"user.created", :handler1}])
+
+      owner =
+        spawn(fn ->
+          receive do
+            :stop -> :ok
+          end
+        end)
+
+      caller =
+        spawn(fn ->
+          :ok = Cache.put_managed(:managed_router_lifecycle, owner, router)
+          Process.exit(self(), :shutdown)
+        end)
+
+      ref = Process.monitor(caller)
+      assert_receive {:DOWN, ^ref, :process, ^caller, :shutdown}, 1_000
+      assert wait_until(fn -> is_pid(Process.whereis(Manager)) end)
+
+      manager_pid = Process.whereis(Manager)
+      assert is_pid(manager_pid)
+      assert Process.alive?(manager_pid)
+      assert Cache.cached?(:managed_router_lifecycle)
+
+      Process.exit(owner, :kill)
+      assert wait_until(fn -> not Cache.cached?(:managed_router_lifecycle) end)
     end
   end
 

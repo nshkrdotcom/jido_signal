@@ -5,6 +5,12 @@ defmodule Jido.Signal.JournalTest do
   alias Jido.Signal.Journal
   alias Jido.Signal.Journal.Adapters.ETS
 
+  defmodule CrashOnGetSignalAdapter do
+    def init, do: :ok
+    def get_conversation(_conversation_id), do: {:ok, MapSet.new(["signal-1"])}
+    def get_signal(_signal_id), do: exit(:boom)
+  end
+
   setup do
     on_exit(fn ->
       # Clean up any adapter state
@@ -132,6 +138,11 @@ defmodule Jido.Signal.JournalTest do
     test "returns empty list for unknown conversation" do
       journal = Journal.new()
       assert Journal.get_conversation(journal, "unknown") == []
+    end
+
+    test "returns empty list when get_signal tasks exit" do
+      journal = Journal.new(CrashOnGetSignalAdapter)
+      assert Journal.get_conversation(journal, "conversation-1") == []
     end
 
     test "returns signals in chronological order" do

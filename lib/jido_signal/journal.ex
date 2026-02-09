@@ -90,7 +90,10 @@ defmodule Jido.Signal.Journal do
     signal_ids
     |> MapSet.to_list()
     |> Task.async_stream(&fetch_signal(journal, &1))
-    |> Stream.map(fn {:ok, signal} -> signal end)
+    |> Stream.map(fn
+      {:ok, signal} -> signal
+      {:exit, _reason} -> nil
+    end)
     |> Stream.reject(&is_nil/1)
     |> Enum.sort_by(& &1.time, &sort_time_compare/2)
   end
@@ -100,6 +103,8 @@ defmodule Jido.Signal.Journal do
       {:ok, signal} -> signal
       _ -> nil
     end
+  catch
+    :exit, _reason -> nil
   end
 
   @doc """

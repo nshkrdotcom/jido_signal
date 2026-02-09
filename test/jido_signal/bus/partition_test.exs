@@ -5,6 +5,16 @@ defmodule JidoTest.Signal.Bus.PartitionTest do
   alias Jido.Signal.Bus
   alias Jido.Signal.Bus.Partition
 
+  defmodule CrashDispatchAdapter do
+    @behaviour Jido.Signal.Dispatch.Adapter
+
+    @impl true
+    def validate_opts(opts), do: {:ok, opts}
+
+    @impl true
+    def deliver(_signal, _opts), do: raise("partition dispatch adapter crashed")
+  end
+
   @moduletag :capture_log
 
   defp wait_for_new_partition_pid(bus_name, partition_id, old_pid, attempts \\ 40)
@@ -23,6 +33,33 @@ defmodule JidoTest.Signal.Bus.PartitionTest do
 
       new_pid ->
         new_pid
+    end
+  end
+
+  describe "dispatch failure handling" do
+    test "partition stays alive when adapter crashes during dispatch" do
+      bus_name = :"test-bus-partition-crash-#{:erlang.unique_integer([:positive])}"
+
+      start_supervised!({Bus, name: bus_name, partition_count: 2})
+
+      {:ok, subscription_id} =
+        Bus.subscribe(bus_name, "test.partition.crash", dispatch: {CrashDispatchAdapter, []})
+
+      partition_id = Partition.partition_for(subscription_id, 2)
+      partition_pid = GenServer.whereis(Partition.via_tuple(bus_name, partition_id))
+      assert is_pid(partition_pid)
+
+      {:ok, signal} =
+        Signal.new(%{
+          type: "test.partition.crash",
+          source: "/test",
+          data: %{value: 1}
+        })
+
+      assert {:ok, [_recorded_signal]} = Bus.publish(bus_name, [signal])
+      Process.sleep(100)
+      assert Process.alive?(partition_pid)
+      assert GenServer.whereis(Partition.via_tuple(bus_name, partition_id)) == partition_pid
     end
   end
 

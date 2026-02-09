@@ -4,6 +4,16 @@ defmodule JidoTest.Signal.Bus do
   alias Jido.Signal
   alias Jido.Signal.Bus
 
+  defmodule CrashDispatchAdapter do
+    @behaviour Jido.Signal.Dispatch.Adapter
+
+    @impl true
+    def validate_opts(opts), do: {:ok, opts}
+
+    @impl true
+    def deliver(_signal, _opts), do: raise("dispatch adapter crashed")
+  end
+
   @moduletag :capture_log
 
   setup do
@@ -72,6 +82,22 @@ defmodule JidoTest.Signal.Bus do
       # Try to resubscribe with the same ID
       {:ok, new_subscription_id} = Bus.subscribe(bus, "test.signal", persistent: true)
       assert is_binary(new_subscription_id)
+    end
+
+    test "stops persistent subscription process when unsubscribing", %{bus: bus} do
+      {:ok, subscription_id} =
+        Bus.subscribe(bus, "test.signal", persistent?: true, dispatch: {:pid, target: self()})
+
+      {:ok, bus_pid} = Bus.whereis(bus)
+      bus_state = :sys.get_state(bus_pid)
+      subscription = Map.fetch!(bus_state.subscriptions, subscription_id)
+      persistent_pid = subscription.persistence_pid
+      assert Process.alive?(persistent_pid)
+
+      monitor_ref = Process.monitor(persistent_pid)
+
+      assert :ok = Bus.unsubscribe(bus, subscription_id)
+      assert_receive {:DOWN, ^monitor_ref, :process, ^persistent_pid, :normal}, 1_000
     end
   end
 
@@ -167,6 +193,40 @@ defmodule JidoTest.Signal.Bus do
 
       # Verify correlation_id is preserved
       assert_receive {:signal, %Signal{type: "test.signal"}}
+    end
+
+    test "bus stays alive when a dispatch adapter crashes", %{bus: bus} do
+      {:ok, bus_pid} = Bus.whereis(bus)
+      handler_id = "dispatch-crash-handler-#{System.unique_integer([:positive])}"
+      test_pid = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:jido, :signal, :bus, :after_dispatch],
+        fn _event, _measurements, metadata, _config ->
+          if metadata.bus_name == bus and metadata.signal.type == "test.signal.crash" do
+            send(test_pid, {:dispatch_result, metadata.dispatch_result})
+          end
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      {:ok, _subscription} =
+        Bus.subscribe(bus, "test.signal.crash", dispatch: {CrashDispatchAdapter, []})
+
+      {:ok, signal} =
+        Signal.new(%{
+          type: "test.signal.crash",
+          source: "/test",
+          data: %{value: 1}
+        })
+
+      assert {:ok, [_recorded_signal]} = Bus.publish(bus, [signal])
+      assert_receive {:dispatch_result, {:error, _reason}}, 1_000
+      assert {:ok, ^bus_pid} = Bus.whereis(bus)
+      assert Process.alive?(bus_pid)
     end
   end
 
