@@ -616,9 +616,7 @@ defmodule Jido.Signal.Bus do
 
       # Otherwise, acknowledge the signal by forwarding to PersistentSubscription
       true ->
-        if subscription.persistence_pid do
-          GenServer.call(subscription.persistence_pid, {:ack, signal_id})
-        end
+        _ = safe_persistent_ack(subscription.persistence_pid, signal_id, subscription_id)
 
         {:reply, :ok, state}
     end
@@ -693,6 +691,32 @@ defmodule Jido.Signal.Bus do
     end
   end
 
+  defp safe_persistent_ack(nil, _signal_id, _subscription_id), do: :ok
+
+  defp safe_persistent_ack(persistence_pid, signal_id, subscription_id) do
+    case GenServer.call(persistence_pid, {:ack, signal_id}, 1_000) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "Persistent ack failed for subscription #{subscription_id}: #{inspect(reason)}"
+        )
+
+        :ok
+
+      _other ->
+        :ok
+    end
+  catch
+    :exit, reason ->
+      Logger.warning(
+        "Persistent ack call exited for subscription #{subscription_id}: #{inspect(reason)}"
+      )
+
+      :ok
+  end
+
   defp partition_subscriptions_for(state, partition_id) do
     state.subscriptions
     |> Enum.filter(fn {subscription_id, _subscription} ->
@@ -727,7 +751,11 @@ defmodule Jido.Signal.Bus do
   defp do_reconnect(state, subscriber_id, client_pid, %{persistent?: true} = subscription) do
     updated_subscription = update_subscription_dispatch(subscription, client_pid)
     {final_state, latest_timestamp} = apply_reconnect(state, subscriber_id, updated_subscription)
-    GenServer.cast(subscription.persistence_pid, {:reconnect, client_pid})
+
+    if is_pid(subscription.persistence_pid) do
+      GenServer.cast(subscription.persistence_pid, {:reconnect, client_pid})
+    end
+
     {:reply, {:ok, latest_timestamp}, final_state}
   end
 
@@ -742,21 +770,27 @@ defmodule Jido.Signal.Bus do
   end
 
   defp apply_reconnect(state, subscriber_id, updated_subscription) do
-    case BusState.add_subscription(state, subscriber_id, updated_subscription) do
-      {:error, :subscription_exists} ->
-        {state, get_latest_log_timestamp(state)}
-
-      {:ok, updated_state} ->
-        {updated_state, get_latest_log_timestamp(updated_state)}
-    end
+    updated_subscriptions = Map.put(state.subscriptions, subscriber_id, updated_subscription)
+    updated_state = %{state | subscriptions: updated_subscriptions}
+    {updated_state, get_latest_log_timestamp(updated_state)}
   end
 
   defp get_latest_log_timestamp(state) do
     state.log
     |> Map.values()
-    |> Enum.map(& &1.time)
-    |> Enum.max(fn -> 0 end)
+    |> Enum.reduce(0, fn signal, acc ->
+      max(acc, signal_time_ms(signal))
+    end)
   end
+
+  defp signal_time_ms(%{time: time}) when is_binary(time) do
+    case DateTime.from_iso8601(time) do
+      {:ok, dt, _offset} -> DateTime.to_unix(dt, :millisecond)
+      _ -> 0
+    end
+  end
+
+  defp signal_time_ms(_signal), do: 0
 
   defp do_redrive_dlq(state, subscription_id, opts) do
     limit = Keyword.get(opts, :limit, :infinity)
@@ -1148,17 +1182,13 @@ defmodule Jido.Signal.Bus do
   end
 
   @impl GenServer
-  def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
-    # Remove the subscriber if it dies
-    case Enum.find(state.subscribers, fn {_id, sub_pid} -> sub_pid == pid end) do
-      nil ->
-        {:noreply, state}
+  def handle_info({:EXIT, _pid, :normal}, state), do: {:noreply, state}
+  def handle_info({:EXIT, _pid, :shutdown}, state), do: {:noreply, state}
+  def handle_info({:EXIT, _pid, {:shutdown, _reason}}, state), do: {:noreply, state}
 
-      {subscriber_id, _} ->
-        Logger.info("Subscriber #{subscriber_id} terminated with reason: #{inspect(reason)}")
-        {_, new_subscribers} = Map.pop(state.subscribers, subscriber_id)
-        {:noreply, %{state | subscribers: new_subscribers}}
-    end
+  def handle_info({:EXIT, pid, reason}, state) do
+    Logger.error("Linked process exited: #{inspect(pid)} reason=#{inspect(reason)}")
+    {:stop, {:linked_process_exit, pid, reason}, state}
   end
 
   def handle_info(:gc_log, %{log_ttl_ms: nil} = state), do: {:noreply, state}

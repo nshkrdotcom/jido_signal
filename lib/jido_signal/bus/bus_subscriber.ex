@@ -160,7 +160,7 @@ defmodule Jido.Signal.Bus.Subscriber do
 
   - `state`: The current bus state
   - `subscription_id`: The unique identifier of the subscription to remove
-  - `opts`: Additional options (currently unused)
+  - `opts`: Additional options for removal behavior
 
   ## Returns
 
@@ -169,11 +169,11 @@ defmodule Jido.Signal.Bus.Subscriber do
   """
   @spec unsubscribe(BusState.t(), String.t(), keyword()) ::
           {:ok, BusState.t()} | {:error, Exception.t()}
-  def unsubscribe(%BusState{} = state, subscription_id, _opts \\ []) do
+  def unsubscribe(%BusState{} = state, subscription_id, opts \\ []) do
     # Get the subscription before removing it
     subscription = BusState.get_subscription(state, subscription_id)
 
-    case BusState.remove_subscription(state, subscription_id) do
+    case BusState.remove_subscription(state, subscription_id, opts) do
       {:ok, new_state} ->
         # If this was a persistent subscription, terminate the process
         if subscription && subscription.persistent? && subscription.persistence_pid do

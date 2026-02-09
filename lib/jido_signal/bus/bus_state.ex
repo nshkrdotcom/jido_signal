@@ -186,16 +186,15 @@ defmodule Jido.Signal.Bus.State do
       # No truncation needed
       {:ok, state}
     else
-      sorted_signals =
+      sorted_entries =
         state.log
         |> Enum.sort_by(fn {key, _signal} -> key end)
-        |> Enum.map(fn {_key, signal} -> signal end)
 
       # Keep only the most recent max_size signals
-      to_keep = Enum.take(sorted_signals, -max_size)
+      to_keep = Enum.take(sorted_entries, -max_size)
 
-      # Convert back to map
-      truncated_log = Map.new(to_keep, fn signal -> {signal.id, signal} end)
+      # Preserve original log IDs as keys
+      truncated_log = Map.new(to_keep)
 
       {:ok, %{state | log: truncated_log}}
     end
@@ -345,7 +344,7 @@ defmodule Jido.Signal.Bus.State do
   - `state`: The current bus state
   - `subscription_id`: The ID of the subscription to remove
   - `opts`: Options including:
-    - `:delete_persistence` - Whether to delete persistence (default: true)
+    - `:delete_persistence` - Whether to delete persistence (default: false)
 
   ## Returns
 
@@ -354,9 +353,9 @@ defmodule Jido.Signal.Bus.State do
   """
   @spec remove_subscription(t(), String.t(), keyword()) :: {:ok, t()} | {:error, atom()}
   def remove_subscription(%__MODULE__{} = state, subscription_id, opts \\ []) do
-    delete_persistence = Keyword.get(opts, :delete_persistence, true)
+    _delete_persistence = Keyword.get(opts, :delete_persistence, false)
 
-    if has_subscription?(state, subscription_id) && delete_persistence do
+    if has_subscription?(state, subscription_id) do
       {subscription, new_subscriptions} = Map.pop(state.subscriptions, subscription_id)
       new_state = %{state | subscriptions: new_subscriptions}
 

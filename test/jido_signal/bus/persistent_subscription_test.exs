@@ -191,6 +191,30 @@ defmodule JidoTest.Signal.Bus.PersistentSubscriptionCheckpointTest do
     end
   end
 
+  describe "ack resilience" do
+    setup do
+      bus_name = :"test_bus_ack_resilience_#{:erlang.unique_integer([:positive])}"
+      start_supervised!({Bus, name: bus_name})
+      {:ok, bus: bus_name}
+    end
+
+    test "invalid ack id does not crash bus or persistent subscription", %{bus: bus} do
+      {:ok, subscription_id} =
+        Bus.subscribe(bus, "test.**", persistent?: true, dispatch: {:pid, target: self()})
+
+      {:ok, bus_pid} = Bus.whereis(bus)
+
+      assert :ok = Bus.ack(bus, subscription_id, "not-a-uuid7")
+
+      assert {:ok, ^bus_pid} = Bus.whereis(bus)
+      assert Process.alive?(bus_pid)
+
+      bus_state = :sys.get_state(bus_pid)
+      subscription = Map.fetch!(bus_state.subscriptions, subscription_id)
+      assert Process.alive?(subscription.persistence_pid)
+    end
+  end
+
   describe "max_attempts and DLQ" do
     setup do
       {:ok, journal_pid} = ETSAdapter.start_link("test_dlq_journal_")

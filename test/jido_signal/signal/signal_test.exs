@@ -251,6 +251,22 @@ defmodule JidoTest.SignalTest do
     end
   end
 
+  describe "map_to_signal_data/2" do
+    test "generates a binary signal id for a single struct" do
+      signal = Signal.map_to_signal_data(%URI{path: "/single"})
+
+      assert %Signal{} = signal
+      assert is_binary(signal.id)
+    end
+
+    test "generates binary signal ids for struct lists" do
+      signals = Signal.map_to_signal_data([%URI{path: "/a"}, %URI{path: "/b"}])
+
+      assert length(signals) == 2
+      assert Enum.all?(signals, &(is_binary(&1.id) and byte_size(&1.id) > 0))
+    end
+  end
+
   describe "extension API" do
     setup do
       {:ok, signal} = Signal.new("test.event", %{message: "hello"})

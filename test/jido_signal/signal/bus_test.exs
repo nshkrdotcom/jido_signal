@@ -404,6 +404,50 @@ defmodule JidoTest.Signal.Bus do
   #   end
   # end
 
+  describe "reconnect/3" do
+    test "updates subscription dispatch and returns an integer checkpoint", %{bus: bus} do
+      {:ok, subscription_id} =
+        Bus.subscribe(bus, "test.reconnect",
+          dispatch: {:pid, target: self(), delivery_mode: :async},
+          persistent?: true
+        )
+
+      {:ok, signal} =
+        Signal.new(%{
+          type: "test.reconnect",
+          source: "/test",
+          data: %{value: 1}
+        })
+
+      {:ok, [recorded]} = Bus.publish(bus, [signal])
+      assert_receive {:signal, %Signal{type: "test.reconnect"}}
+      :ok = Bus.ack(bus, subscription_id, recorded.id)
+
+      parent = self()
+
+      reconnect_client =
+        spawn(fn ->
+          receive do
+            :stop -> :ok
+          after
+            5_000 -> send(parent, :reconnect_client_timeout)
+          end
+        end)
+
+      assert {:ok, checkpoint} = Bus.reconnect(bus, subscription_id, reconnect_client)
+      assert is_integer(checkpoint)
+      assert checkpoint >= 0
+
+      {:ok, bus_pid} = Bus.whereis(bus)
+      bus_state = :sys.get_state(bus_pid)
+      updated_subscription = Map.fetch!(bus_state.subscriptions, subscription_id)
+      assert {:pid, dispatch_opts} = updated_subscription.dispatch
+      assert Keyword.get(dispatch_opts, :target) == reconnect_client
+
+      send(reconnect_client, :stop)
+    end
+  end
+
   describe "whereis/1" do
     test "finds a bus by name", %{bus: bus} do
       {:ok, pid} = Bus.whereis(bus)
@@ -428,6 +472,18 @@ defmodule JidoTest.Signal.Bus do
       def before_publish(signals, _context, state) do
         Process.sleep(state.sleep_ms)
         {:cont, signals, state}
+      end
+    end
+
+    defmodule CrashBusMiddleware do
+      use Jido.Signal.Bus.Middleware
+
+      @impl true
+      def init(_opts), do: {:ok, %{}}
+
+      @impl true
+      def before_publish(_signals, _context, _state) do
+        raise "middleware boom"
       end
     end
 
@@ -467,6 +523,25 @@ defmodule JidoTest.Signal.Bus do
 
       assert {:ok, [_recorded_signal]} = result
       assert_receive {:signal, %Signal{type: "test.signal"}}
+    end
+
+    test "bus stays alive when middleware crashes" do
+      bus_name = "test-crash-middleware-bus-#{:erlang.unique_integer([:positive])}"
+
+      start_supervised!(
+        {Bus, name: bus_name, middleware: [{CrashBusMiddleware, []}], middleware_timeout_ms: 100}
+      )
+
+      {:ok, bus_pid} = Bus.whereis(bus_name)
+      {:ok, signal} = Signal.new(%{type: "test.signal", source: "/test", data: %{value: 1}})
+
+      result = Bus.publish(bus_name, [signal])
+
+      assert {:error, %Jido.Signal.Error.ExecutionFailureError{message: "Middleware crashed"}} =
+               result
+
+      assert {:ok, ^bus_pid} = Bus.whereis(bus_name)
+      assert Process.alive?(bus_pid)
     end
 
     test "bus without middleware works normally" do

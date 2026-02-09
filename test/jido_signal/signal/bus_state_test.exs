@@ -195,6 +195,15 @@ defmodule JidoTest.Signal.Bus.StateTest do
       assert length(list) == 3
     end
 
+    test "preserves original log entry ids when truncating", %{state: state} do
+      original_keys = Map.keys(state.log)
+
+      assert {:ok, new_state} = State.truncate_log(state, 3)
+
+      truncated_keys = Map.keys(new_state.log)
+      assert Enum.all?(truncated_keys, &(&1 in original_keys))
+    end
+
     test "does nothing when max size is larger than current size", %{state: state} do
       assert {:ok, new_state} = State.truncate_log(state, 10)
       assert map_size(new_state.log) == 5
@@ -358,6 +367,18 @@ defmodule JidoTest.Signal.Bus.StateTest do
     test "remove_subscription removes subscription", %{state: state, subscription: sub} do
       {:ok, state} = State.add_subscription(state, "sub1", sub)
       assert {:ok, new_state} = State.remove_subscription(state, "sub1")
+      refute Map.has_key?(new_state.subscriptions, "sub1")
+    end
+
+    test "remove_subscription removes subscription when delete_persistence is false", %{
+      state: state,
+      subscription: sub
+    } do
+      {:ok, state} = State.add_subscription(state, "sub1", sub)
+
+      assert {:ok, new_state} =
+               State.remove_subscription(state, "sub1", delete_persistence: false)
+
       refute Map.has_key?(new_state.subscriptions, "sub1")
     end
 

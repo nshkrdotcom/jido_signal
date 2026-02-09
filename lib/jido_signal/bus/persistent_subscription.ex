@@ -145,54 +145,60 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
 
   @impl GenServer
   def handle_call({:ack, signal_log_id}, _from, state) when is_binary(signal_log_id) do
-    # Remove the acknowledged signal from in-flight
-    new_in_flight = Map.delete(state.in_flight_signals, signal_log_id)
+    case extract_ack_timestamp(signal_log_id) do
+      {:ok, timestamp} ->
+        # Remove the acknowledged signal from in-flight
+        new_in_flight = Map.delete(state.in_flight_signals, signal_log_id)
 
-    # Extract timestamp from UUID7 for checkpoint comparison
-    timestamp = ID.extract_timestamp(signal_log_id)
+        # Update checkpoint if this is a higher number
+        new_checkpoint = max(state.checkpoint, timestamp)
 
-    # Update checkpoint if this is a higher number
-    new_checkpoint = max(state.checkpoint, timestamp)
+        # Persist checkpoint if journal adapter is configured
+        persist_checkpoint(state, new_checkpoint)
 
-    # Persist checkpoint if journal adapter is configured
-    persist_checkpoint(state, new_checkpoint)
+        # Update state
+        new_state = %{state | in_flight_signals: new_in_flight, checkpoint: new_checkpoint}
 
-    # Update state
-    new_state = %{state | in_flight_signals: new_in_flight, checkpoint: new_checkpoint}
+        # Process any pending signals
+        new_state = process_pending_signals(new_state)
 
-    # Process any pending signals
-    new_state = process_pending_signals(new_state)
+        {:reply, :ok, new_state}
 
-    {:reply, :ok, new_state}
+      {:error, :invalid_signal_log_id} ->
+        {:reply, {:error, :invalid_signal_log_id}, state}
+    end
   end
 
   @impl GenServer
   def handle_call({:ack, signal_log_ids}, _from, state) when is_list(signal_log_ids) do
-    # Remove all acknowledged signals from in-flight
-    new_in_flight =
-      Enum.reduce(signal_log_ids, state.in_flight_signals, fn id, acc ->
-        Map.delete(acc, id)
-      end)
+    case extract_ack_timestamps(signal_log_ids) do
+      {:ok, timestamps} ->
+        # Remove all acknowledged signals from in-flight
+        new_in_flight =
+          Enum.reduce(signal_log_ids, state.in_flight_signals, fn id, acc ->
+            Map.delete(acc, id)
+          end)
 
-    # Extract timestamps from all UUIDs and find the highest
-    highest_timestamp =
-      signal_log_ids
-      |> Enum.map(&ID.extract_timestamp/1)
-      |> Enum.max()
+        # Extract timestamps from all UUIDs and find the highest
+        highest_timestamp = Enum.max(timestamps, fn -> state.checkpoint end)
 
-    # Update checkpoint if this is a higher number
-    new_checkpoint = max(state.checkpoint, highest_timestamp)
+        # Update checkpoint if this is a higher number
+        new_checkpoint = max(state.checkpoint, highest_timestamp)
 
-    # Persist checkpoint if journal adapter is configured
-    persist_checkpoint(state, new_checkpoint)
+        # Persist checkpoint if journal adapter is configured
+        persist_checkpoint(state, new_checkpoint)
 
-    # Update state
-    new_state = %{state | in_flight_signals: new_in_flight, checkpoint: new_checkpoint}
+        # Update state
+        new_state = %{state | in_flight_signals: new_in_flight, checkpoint: new_checkpoint}
 
-    # Process any pending signals
-    new_state = process_pending_signals(new_state)
+        # Process any pending signals
+        new_state = process_pending_signals(new_state)
 
-    {:reply, :ok, new_state}
+        {:reply, :ok, new_state}
+
+      {:error, :invalid_signal_log_id} ->
+        {:reply, {:error, :invalid_signal_log_id}, state}
+    end
   end
 
   @impl GenServer
@@ -236,25 +242,29 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
 
   @impl GenServer
   def handle_cast({:ack, signal_log_id}, state) when is_binary(signal_log_id) do
-    # Remove the acknowledged signal from in-flight
-    new_in_flight = Map.delete(state.in_flight_signals, signal_log_id)
+    case extract_ack_timestamp(signal_log_id) do
+      {:ok, timestamp} ->
+        # Remove the acknowledged signal from in-flight
+        new_in_flight = Map.delete(state.in_flight_signals, signal_log_id)
 
-    # Extract timestamp from UUID7 for checkpoint comparison
-    timestamp = ID.extract_timestamp(signal_log_id)
+        # Update checkpoint if this is a higher number
+        new_checkpoint = max(state.checkpoint, timestamp)
 
-    # Update checkpoint if this is a higher number
-    new_checkpoint = max(state.checkpoint, timestamp)
+        # Persist checkpoint if journal adapter is configured
+        persist_checkpoint(state, new_checkpoint)
 
-    # Persist checkpoint if journal adapter is configured
-    persist_checkpoint(state, new_checkpoint)
+        # Update state
+        new_state = %{state | in_flight_signals: new_in_flight, checkpoint: new_checkpoint}
 
-    # Update state
-    new_state = %{state | in_flight_signals: new_in_flight, checkpoint: new_checkpoint}
+        # Process any pending signals
+        new_state = process_pending_signals(new_state)
 
-    # Process any pending signals
-    new_state = process_pending_signals(new_state)
+        {:noreply, new_state}
 
-    {:noreply, new_state}
+      {:error, :invalid_signal_log_id} ->
+        Logger.warning("Ignoring invalid ack signal_log_id for subscription #{state.id}")
+        {:noreply, state}
+    end
   end
 
   @impl GenServer
@@ -357,7 +367,7 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
 
   defp signal_after_checkpoint?(signal, checkpoint) do
     case DateTime.from_iso8601(signal.time) do
-      {:ok, timestamp, _offset} -> DateTime.to_unix(timestamp) > checkpoint
+      {:ok, timestamp, _offset} -> DateTime.to_unix(timestamp, :millisecond) > checkpoint
       _ -> false
     end
   end
@@ -365,7 +375,7 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
   defp replay_single_signal(signal, state) do
     case DateTime.from_iso8601(signal.time) do
       {:ok, timestamp, _offset} ->
-        if DateTime.to_unix(timestamp) > state.checkpoint do
+        if DateTime.to_unix(timestamp, :millisecond) > state.checkpoint do
           dispatch_replay_signal(signal, state)
         end
 
@@ -398,6 +408,21 @@ defmodule Jido.Signal.Bus.PersistentSubscription do
   end
 
   # Private Helpers
+
+  defp extract_ack_timestamps(signal_log_ids) do
+    Enum.reduce_while(signal_log_ids, {:ok, []}, fn signal_log_id, {:ok, acc} ->
+      case extract_ack_timestamp(signal_log_id) do
+        {:ok, timestamp} -> {:cont, {:ok, [timestamp | acc]}}
+        {:error, :invalid_signal_log_id} -> {:halt, {:error, :invalid_signal_log_id}}
+      end
+    end)
+  end
+
+  defp extract_ack_timestamp(signal_log_id) do
+    {:ok, ID.extract_timestamp(signal_log_id)}
+  rescue
+    _ -> {:error, :invalid_signal_log_id}
+  end
 
   # Persists checkpoint to journal if adapter is configured
   @spec persist_checkpoint(t(), non_neg_integer()) :: :ok
