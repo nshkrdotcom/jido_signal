@@ -52,9 +52,13 @@ defmodule Jido.Signal.Bus do
   alias Jido.Signal.Error
   alias Jido.Signal.ID
   alias Jido.Signal.Router
+  alias Jido.Signal.Router.Cache
   alias Jido.Signal.Telemetry
 
   require Logger
+
+  @default_shutdown_timeout 5_000
+  @default_dispatch_timeout_ms 5_000
 
   @type start_option ::
           {:name, atom()}
@@ -110,12 +114,20 @@ defmodule Jido.Signal.Bus do
 
     {:ok, child_supervisor} = DynamicSupervisor.start_link(strategy: :one_for_one)
 
-    {journal_adapter, journal_pid} = init_journal_adapter(name, opts)
+    {journal_adapter, journal_pid, owns_journal_pid} = init_journal_adapter(name, opts)
     middleware_specs = Keyword.get(opts, :middleware, [])
 
     case MiddlewarePipeline.init_middleware(middleware_specs) do
       {:ok, middleware_configs} ->
-        init_state(name, opts, child_supervisor, journal_adapter, journal_pid, middleware_configs)
+        init_state(
+          name,
+          opts,
+          child_supervisor,
+          journal_adapter,
+          journal_pid,
+          owns_journal_pid,
+          middleware_configs
+        )
 
       {:error, reason} ->
         {:stop, {:middleware_init_failed, reason}}
@@ -135,24 +147,24 @@ defmodule Jido.Signal.Bus do
 
   defp do_init_journal_adapter(_name, journal_adapter, existing_pid)
        when not is_nil(journal_adapter) and not is_nil(existing_pid) do
-    {journal_adapter, existing_pid}
+    {journal_adapter, existing_pid, false}
   end
 
   defp do_init_journal_adapter(_name, journal_adapter, _existing_pid)
        when not is_nil(journal_adapter) do
     case journal_adapter.init() do
       :ok ->
-        {journal_adapter, nil}
+        {journal_adapter, nil, false}
 
       {:ok, pid} ->
-        {journal_adapter, pid}
+        {journal_adapter, pid, true}
 
       {:error, reason} ->
         Logger.warning(
           "Failed to initialize journal adapter #{inspect(journal_adapter)}: #{inspect(reason)}"
         )
 
-        {nil, nil}
+        {nil, nil, false}
     end
   end
 
@@ -161,28 +173,35 @@ defmodule Jido.Signal.Bus do
       "Bus #{name} started without journal adapter - checkpoints will be in-memory only"
     )
 
-    {nil, nil}
+    {nil, nil, false}
   end
 
   # Initializes the bus state with all configuration
-  defp init_state(name, opts, child_supervisor, journal_adapter, journal_pid, middleware_configs) do
+  defp init_state(
+         name,
+         opts,
+         child_supervisor,
+         journal_adapter,
+         journal_pid,
+         owns_journal_pid,
+         middleware_configs
+       ) do
     middleware_timeout_ms = Keyword.get(opts, :middleware_timeout_ms, 100)
     partition_count = Keyword.get(opts, :partition_count, 1)
     max_log_size = Keyword.get(opts, :max_log_size, 100_000)
     log_ttl_ms = Keyword.get(opts, :log_ttl_ms)
 
-    partition_pids =
-      init_partitions(
-        name,
-        opts,
-        partition_count,
-        middleware_configs,
-        middleware_timeout_ms,
-        journal_adapter,
-        journal_pid
-      )
+    init_partitions(
+      name,
+      opts,
+      partition_count,
+      middleware_configs,
+      middleware_timeout_ms,
+      journal_adapter,
+      journal_pid
+    )
 
-    schedule_gc_if_needed(log_ttl_ms)
+    gc_timer_ref = schedule_gc_if_needed(log_ttl_ms)
 
     state = %BusState{
       name: name,
@@ -193,10 +212,12 @@ defmodule Jido.Signal.Bus do
       middleware_timeout_ms: middleware_timeout_ms,
       journal_adapter: journal_adapter,
       journal_pid: journal_pid,
+      owns_journal_pid: owns_journal_pid,
       partition_count: partition_count,
-      partition_pids: partition_pids,
+      partition_pids: [],
       max_log_size: max_log_size,
-      log_ttl_ms: log_ttl_ms
+      log_ttl_ms: log_ttl_ms,
+      gc_timer_ref: gc_timer_ref
     }
 
     {:ok, state}
@@ -204,7 +225,7 @@ defmodule Jido.Signal.Bus do
 
   defp init_partitions(_name, _opts, partition_count, _middleware, _timeout, _adapter, _pid)
        when partition_count <= 1 do
-    []
+    :ok
   end
 
   defp init_partitions(
@@ -229,13 +250,10 @@ defmodule Jido.Signal.Bus do
     ]
 
     {:ok, _sup_pid} = PartitionSupervisor.start_link(partition_opts)
-
-    0..(partition_count - 1)
-    |> Enum.map(&GenServer.whereis(Partition.via_tuple(name, &1)))
-    |> Enum.reject(&is_nil/1)
+    :ok
   end
 
-  defp schedule_gc_if_needed(nil), do: :ok
+  defp schedule_gc_if_needed(nil), do: nil
   defp schedule_gc_if_needed(log_ttl_ms), do: Process.send_after(self(), :gc_log, log_ttl_ms)
 
   @doc """
@@ -277,6 +295,23 @@ defmodule Jido.Signal.Bus do
 
   defdelegate via_tuple(name, opts \\ []), to: Jido.Signal.Util
   defdelegate whereis(server, opts \\ []), to: Jido.Signal.Util
+
+  @doc """
+  Stops a bus process gracefully.
+
+  This is an additive convenience wrapper around `GenServer.stop/3`.
+  """
+  @spec stop(server(), timeout()) :: :ok | {:error, :not_found}
+  def stop(bus, timeout \\ @default_shutdown_timeout) do
+    with {:ok, pid} <- whereis(bus) do
+      try do
+        GenServer.stop(pid, :normal, timeout)
+      catch
+        :exit, {:noproc, _} -> :ok
+        :exit, :normal -> :ok
+      end
+    end
+  end
 
   @doc """
   Subscribes to signals matching the given path pattern.
@@ -479,13 +514,9 @@ defmodule Jido.Signal.Bus do
   end
 
   def handle_call({:unsubscribe, subscription_id, opts}, _from, state) do
-    if not Enum.empty?(state.partition_pids) do
+    if partitioned?(state) do
       partition_id = Partition.partition_for(subscription_id, state.partition_count)
-      partition_pid = Enum.at(state.partition_pids, partition_id)
-
-      if partition_pid do
-        GenServer.call(partition_pid, {:remove_subscription, subscription_id})
-      end
+      _ = safe_partition_call(state, partition_id, {:remove_subscription, subscription_id})
     end
 
     case Subscriber.unsubscribe(state, subscription_id, opts) do
@@ -630,19 +661,44 @@ defmodule Jido.Signal.Bus do
     end
   end
 
+  def handle_call({:partition_subscriptions, partition_id}, _from, state) do
+    {:reply, partition_subscriptions_for(state, partition_id), state}
+  end
+
   # Private helpers for handle_call callbacks
 
-  defp sync_subscription_to_partition(_new_state, _subscription_id, %{partition_pids: []}),
-    do: :ok
+  defp sync_subscription_to_partition(_new_state, _subscription_id, %{partition_count: count})
+       when count <= 1,
+       do: :ok
 
   defp sync_subscription_to_partition(new_state, subscription_id, state) do
     subscription = BusState.get_subscription(new_state, subscription_id)
     partition_id = Partition.partition_for(subscription_id, state.partition_count)
-    partition_pid = Enum.at(state.partition_pids, partition_id)
 
-    if partition_pid do
-      GenServer.call(partition_pid, {:add_subscription, subscription_id, subscription})
+    _ =
+      safe_partition_call(state, partition_id, {:add_subscription, subscription_id, subscription})
+  end
+
+  defp partitioned?(%{partition_count: count}) when is_integer(count), do: count > 1
+
+  defp safe_partition_call(state, partition_id, message) do
+    timeout = max(state.middleware_timeout_ms, 5_000)
+
+    try do
+      GenServer.call(Partition.via_tuple(state.name, partition_id), message, timeout)
+    catch
+      :exit, {:noproc, _} -> :ok
+      :exit, {:timeout, _} -> :ok
+      :exit, _ -> :ok
     end
+  end
+
+  defp partition_subscriptions_for(state, partition_id) do
+    state.subscriptions
+    |> Enum.filter(fn {subscription_id, _subscription} ->
+      Partition.partition_for(subscription_id, state.partition_count) == partition_id
+    end)
+    |> Map.new()
   end
 
   defp finalize_publish(new_state, processed_signals, context) do
@@ -759,10 +815,10 @@ defmodule Jido.Signal.Bus do
   defp publish_with_middleware(state, signals, context, timeout_ms) do
     with :ok <- validate_signals(signals),
          {:ok, new_state, uuid_signal_pairs} <- BusState.append_signals(state, signals) do
-      if Enum.empty?(state.partition_pids) do
-        publish_without_partitions(new_state, signals, uuid_signal_pairs, context, timeout_ms)
-      else
+      if partitioned?(state) do
         publish_with_partitions(new_state, signals, uuid_signal_pairs, context)
+      else
+        publish_without_partitions(new_state, signals, uuid_signal_pairs, context, timeout_ms)
       end
     end
   end
@@ -775,7 +831,7 @@ defmodule Jido.Signal.Bus do
 
     case find_saturated_subscriptions(persistent_results) do
       [] ->
-        broadcast_to_partitions(state.partition_pids, signals, uuid_signal_pairs, context)
+        broadcast_to_partitions(state, signals, uuid_signal_pairs, context)
         {:ok, state, uuid_signal_pairs}
 
       [{subscription_id, _} | _] = saturated ->
@@ -808,9 +864,12 @@ defmodule Jido.Signal.Bus do
     end)
   end
 
-  defp broadcast_to_partitions(partition_pids, signals, uuid_signal_pairs, context) do
-    Enum.each(partition_pids, fn partition_pid ->
-      GenServer.cast(partition_pid, {:dispatch, signals, uuid_signal_pairs, context})
+  defp broadcast_to_partitions(state, signals, uuid_signal_pairs, context) do
+    Enum.each(0..(state.partition_count - 1), fn partition_id ->
+      GenServer.cast(
+        Partition.via_tuple(state.name, partition_id),
+        {:dispatch, signals, uuid_signal_pairs, context}
+      )
     end)
   end
 
@@ -1059,8 +1118,20 @@ defmodule Jido.Signal.Bus do
           {:error, :timeout}
       end
     else
-      # For regular subscriptions, use async dispatch
-      Dispatch.dispatch(signal, subscription.dispatch)
+      # For regular subscriptions, run dispatch in a supervised task with timeout
+      dispatch_with_timeout(signal, subscription.dispatch)
+    end
+  end
+
+  defp dispatch_with_timeout(signal, dispatch_config) do
+    task =
+      Task.Supervisor.async_nolink(Jido.Signal.TaskSupervisor, fn ->
+        Dispatch.dispatch(signal, dispatch_config)
+      end)
+
+    case Task.yield(task, @default_dispatch_timeout_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> {:error, :timeout}
     end
   end
 
@@ -1093,9 +1164,9 @@ defmodule Jido.Signal.Bus do
   def handle_info(:gc_log, %{log_ttl_ms: nil} = state), do: {:noreply, state}
 
   def handle_info(:gc_log, state) do
-    Process.send_after(self(), :gc_log, state.log_ttl_ms)
+    gc_timer_ref = Process.send_after(self(), :gc_log, state.log_ttl_ms)
     new_state = prune_expired_log_entries(state)
-    {:noreply, new_state}
+    {:noreply, %{new_state | gc_timer_ref: gc_timer_ref}}
   end
 
   def handle_info(msg, state) do
@@ -1133,5 +1204,95 @@ defmodule Jido.Signal.Bus do
         %{bus_name: state.name, new_size: map_size(new_log), ttl_ms: state.log_ttl_ms}
       )
     end
+  end
+
+  @impl GenServer
+  def terminate(_reason, state) do
+    # Always best-effort cleanup for internally owned resources.
+    maybe_cancel_timer(state.gc_timer_ref)
+    _ = safe_snapshot_cleanup(state)
+    _ = safe_router_cache_cleanup(state)
+    _ = stop_partition_supervisor(state)
+    _ = stop_process(state.child_supervisor, @default_shutdown_timeout)
+    _ = stop_owned_journal_adapter(state)
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  defp maybe_cancel_timer(nil), do: :ok
+
+  defp maybe_cancel_timer(timer_ref) do
+    _ = Process.cancel_timer(timer_ref, async: false, info: false)
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  defp safe_snapshot_cleanup(state) do
+    case Snapshot.cleanup(state) do
+      {:ok, _clean_state} -> :ok
+      {:error, _reason} -> :ok
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp safe_router_cache_cleanup(%{router: %{cache_id: nil}}), do: :ok
+
+  defp safe_router_cache_cleanup(%{router: %{cache_id: cache_id}}) do
+    Cache.delete(cache_id)
+  rescue
+    _ -> :ok
+  end
+
+  defp safe_router_cache_cleanup(_state), do: :ok
+
+  defp stop_partition_supervisor(%{partition_count: count}) when count <= 1, do: :ok
+
+  defp stop_partition_supervisor(state) do
+    partition_supervisor_pid = GenServer.whereis(PartitionSupervisor.via_tuple(state.name))
+    stop_process(partition_supervisor_pid, @default_shutdown_timeout)
+  end
+
+  defp stop_owned_journal_adapter(%{owns_journal_pid: true, journal_pid: journal_pid}) do
+    stop_process(journal_pid, @default_shutdown_timeout)
+  end
+
+  defp stop_owned_journal_adapter(_state), do: :ok
+
+  defp stop_process(nil, _timeout), do: :ok
+
+  defp stop_process(pid, timeout) when is_pid(pid) do
+    if Process.alive?(pid) do
+      ref = Process.monitor(pid)
+      Process.exit(pid, :shutdown)
+      await_down(pid, ref, timeout)
+    else
+      :ok
+    end
+  rescue
+    _ -> :ok
+  end
+
+  defp await_down(pid, ref, timeout) do
+    receive do
+      {:DOWN, ^ref, :process, ^pid, _reason} ->
+        :ok
+    after
+      timeout ->
+        Process.exit(pid, :kill)
+
+        receive do
+          {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+        after
+          100 -> :ok
+        end
+    end
+
+    Process.demonitor(ref, [:flush])
+    :ok
+  rescue
+    _ -> :ok
   end
 end

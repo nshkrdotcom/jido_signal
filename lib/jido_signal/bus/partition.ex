@@ -14,6 +14,8 @@ defmodule Jido.Signal.Bus.Partition do
 
   require Logger
 
+  @default_dispatch_timeout_ms 5_000
+
   @schema Zoi.struct(
             __MODULE__,
             %{
@@ -100,7 +102,11 @@ defmodule Jido.Signal.Bus.Partition do
 
   @impl GenServer
   def handle_cast({:dispatch, signals, uuid_signal_pairs, context}, state) do
-    state = refill_tokens(state)
+    state =
+      state
+      |> maybe_refresh_subscriptions_from_bus()
+      |> refill_tokens()
+
     signal_count = length(signals)
 
     case consume_tokens(state, signal_count) do
@@ -149,6 +155,12 @@ defmodule Jido.Signal.Bus.Partition do
   @impl GenServer
   def handle_call({:update_middleware, middleware}, _from, state) do
     {:reply, :ok, %{state | middleware: middleware}}
+  end
+
+  @impl GenServer
+  def handle_call({:replace_subscriptions, subscriptions}, _from, state)
+      when is_map(subscriptions) do
+    {:reply, :ok, %{state | subscriptions: subscriptions}}
   end
 
   defp dispatch_to_subscriptions(state, signals, uuid_signal_pairs, context) do
@@ -349,7 +361,19 @@ defmodule Jido.Signal.Bus.Partition do
           {:error, :timeout}
       end
     else
-      Dispatch.dispatch(signal, subscription.dispatch)
+      dispatch_with_timeout(signal, subscription.dispatch)
+    end
+  end
+
+  defp dispatch_with_timeout(signal, dispatch_config) do
+    task =
+      Task.Supervisor.async_nolink(Jido.Signal.TaskSupervisor, fn ->
+        Dispatch.dispatch(signal, dispatch_config)
+      end)
+
+    case Task.yield(task, @default_dispatch_timeout_ms) || Task.shutdown(task, :brutal_kill) do
+      {:ok, result} -> result
+      nil -> {:error, :timeout}
     end
   end
 
@@ -376,5 +400,19 @@ defmodule Jido.Signal.Bus.Partition do
     else
       {:error, :rate_limited}
     end
+  end
+
+  defp maybe_refresh_subscriptions_from_bus(%{subscriptions: subscriptions} = state)
+       when map_size(subscriptions) > 0 do
+    state
+  end
+
+  defp maybe_refresh_subscriptions_from_bus(state) do
+    case GenServer.call(state.bus_pid, {:partition_subscriptions, state.partition_id}, 1_000) do
+      subscriptions when is_map(subscriptions) -> %{state | subscriptions: subscriptions}
+      _ -> state
+    end
+  catch
+    :exit, _ -> state
   end
 end

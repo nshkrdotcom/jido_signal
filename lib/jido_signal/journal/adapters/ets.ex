@@ -220,6 +220,7 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
       end
     end)
 
+    cache_tables_in_persistent_term(adapter)
     {:ok, adapter}
   end
 
@@ -465,6 +466,37 @@ defmodule Jido.Signal.Journal.Adapters.ETS do
       end
     end)
 
+    clear_persistent_term_cache()
     {:reply, :ok, adapter}
   end
+
+  @impl GenServer
+  def terminate(_reason, _adapter) do
+    clear_persistent_term_cache()
+    :ok
+  end
+
+  defp cache_tables_in_persistent_term(adapter) do
+    :persistent_term.put(persistent_term_key(), %{
+      signals_table: adapter.signals_table,
+      causes_table: adapter.causes_table,
+      effects_table: adapter.effects_table,
+      conversations_table: adapter.conversations_table,
+      checkpoints_table: adapter.checkpoints_table,
+      dlq_table: adapter.dlq_table
+    })
+
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  defp clear_persistent_term_cache do
+    _ = :persistent_term.erase(persistent_term_key())
+    :ok
+  rescue
+    _ -> :ok
+  end
+
+  defp persistent_term_key(pid \\ self()), do: {__MODULE__, :tables, pid}
 end

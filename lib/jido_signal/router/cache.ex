@@ -52,6 +52,7 @@ defmodule Jido.Signal.Router.Cache do
 
   alias Jido.Signal
   alias Jido.Signal.Error
+  alias Jido.Signal.Router.Cache.Manager
   alias Jido.Signal.Router.Engine
   alias Jido.Signal.Telemetry
 
@@ -74,6 +75,18 @@ defmodule Jido.Signal.Router.Cache do
   @spec put(cache_id(), map()) :: :ok
   def put(cache_id, %{trie: trie}) when is_atom(cache_id) or is_tuple(cache_id) do
     :persistent_term.put(cache_key(cache_id), trie)
+  end
+
+  @doc """
+  Stores a router in cache and binds its lifecycle to an owner process.
+
+  When `owner_pid` exits, the cache entry is automatically removed.
+  """
+  @spec put_managed(cache_id(), pid(), map()) :: :ok
+  def put_managed(cache_id, owner_pid, %{trie: _trie} = router)
+      when (is_atom(cache_id) or is_tuple(cache_id)) and is_pid(owner_pid) do
+    put(cache_id, router)
+    :ok = Manager.register(cache_id, owner_pid)
   end
 
   @doc """
@@ -119,6 +132,7 @@ defmodule Jido.Signal.Router.Cache do
   """
   @spec delete(cache_id()) :: :ok
   def delete(cache_id) when is_atom(cache_id) or is_tuple(cache_id) do
+    _ = Manager.unregister(cache_id)
     _ = :persistent_term.erase(cache_key(cache_id))
     :ok
   end

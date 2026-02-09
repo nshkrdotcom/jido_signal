@@ -7,6 +7,25 @@ defmodule JidoTest.Signal.Bus.PartitionTest do
 
   @moduletag :capture_log
 
+  defp wait_for_new_partition_pid(bus_name, partition_id, old_pid, attempts \\ 40)
+
+  defp wait_for_new_partition_pid(_bus_name, _partition_id, _old_pid, 0), do: nil
+
+  defp wait_for_new_partition_pid(bus_name, partition_id, old_pid, attempts) do
+    case GenServer.whereis(Partition.via_tuple(bus_name, partition_id)) do
+      nil ->
+        Process.sleep(25)
+        wait_for_new_partition_pid(bus_name, partition_id, old_pid, attempts - 1)
+
+      ^old_pid ->
+        Process.sleep(25)
+        wait_for_new_partition_pid(bus_name, partition_id, old_pid, attempts - 1)
+
+      new_pid ->
+        new_pid
+    end
+  end
+
   describe "rate limiting" do
     test "rate limiting triggers when burst size exceeded" do
       bus_name = :"test-bus-rate-limit-#{:erlang.unique_integer([:positive])}"
@@ -420,6 +439,32 @@ defmodule JidoTest.Signal.Bus.PartitionTest do
 
       # Should not receive new signals
       refute_receive {:signal, _}, 200
+    end
+
+    test "dispatch reaches restarted partition worker without bus restart", %{bus: bus} do
+      {:ok, subscription_id} = Bus.subscribe(bus, "test.partition.restart")
+
+      partition_id = Partition.partition_for(subscription_id, 4)
+      old_partition_pid = GenServer.whereis(Partition.via_tuple(bus, partition_id))
+      assert is_pid(old_partition_pid)
+
+      monitor_ref = Process.monitor(old_partition_pid)
+      Process.exit(old_partition_pid, :kill)
+      assert_receive {:DOWN, ^monitor_ref, :process, ^old_partition_pid, _reason}, 1_000
+
+      new_partition_pid = wait_for_new_partition_pid(bus, partition_id, old_partition_pid)
+      assert is_pid(new_partition_pid)
+      assert new_partition_pid != old_partition_pid
+
+      {:ok, signal} =
+        Signal.new(%{
+          type: "test.partition.restart",
+          source: "/test",
+          data: %{value: 1}
+        })
+
+      {:ok, _recorded} = Bus.publish(bus, [signal])
+      assert_receive {:signal, %Signal{type: "test.partition.restart"}}, 1_500
     end
   end
 

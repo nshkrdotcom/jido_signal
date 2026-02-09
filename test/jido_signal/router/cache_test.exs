@@ -8,6 +8,18 @@ defmodule Jido.Signal.Router.CacheTest do
 
   @moduletag :capture_log
 
+  defp wait_until(fun, attempts \\ 40)
+  defp wait_until(_fun, 0), do: false
+
+  defp wait_until(fun, attempts) do
+    if fun.() do
+      true
+    else
+      Process.sleep(25)
+      wait_until(fun, attempts - 1)
+    end
+  end
+
   setup do
     # Clean up any cached routers from previous tests
     for cache_id <- Cache.list_cached() do
@@ -39,6 +51,25 @@ defmodule Jido.Signal.Router.CacheTest do
 
       # Clean up
       Cache.delete({:myapp, :user_router})
+    end
+
+    test "put_managed/3 removes cache entry when owner exits" do
+      {:ok, router} = Router.new([{"user.created", :handler1}])
+
+      owner =
+        spawn(fn ->
+          receive do
+            :stop -> :ok
+          end
+        end)
+
+      assert :ok = Cache.put_managed(:managed_router, owner, router)
+      assert Cache.cached?(:managed_router)
+
+      ref = Process.monitor(owner)
+      Process.exit(owner, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^owner, _reason}, 1_000
+      assert wait_until(fn -> not Cache.cached?(:managed_router) end)
     end
   end
 

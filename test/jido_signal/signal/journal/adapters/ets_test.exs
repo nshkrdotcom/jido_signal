@@ -126,6 +126,14 @@ defmodule Jido.Signal.Journal.Adapters.ETSTest do
     assert :ets.whereis(adapter.conversations_table) == :undefined
   end
 
+  test "normal stop erases persistent_term table cache key", %{pid: pid} do
+    key = {ETS, :tables, pid}
+    refute :persistent_term.get(key, :not_found) == :not_found
+
+    GenServer.stop(pid, :normal)
+    assert :persistent_term.get(key, :not_found) == :not_found
+  end
+
   test "multiple adapters can coexist" do
     prefix1 = "test_journal_#{System.unique_integer([:positive, :monotonic])}_"
     prefix2 = "test_journal_#{System.unique_integer([:positive, :monotonic])}_"
