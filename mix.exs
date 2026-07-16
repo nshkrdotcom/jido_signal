@@ -201,8 +201,8 @@ defmodule Jido.Signal.MixProject do
       {:telemetry, "~> 1.3"},
       {:uniq, "~> 0.6.1"},
       {:splode, "~> 0.3.0"},
-      {:zoi, "~> 0.17.1"},
-      {:memento, "~> 0.5.0"},
+      {:zoi, "~> 0.18.5"},
+      {:memento, "~> 0.6.0"},
       {:fuse, "~> 2.5"},
       {:spec_led_ex, github: "specleddev/specled_ex", only: [:dev, :test], runtime: false},
 
